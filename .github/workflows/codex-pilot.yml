@@ -1,4 +1,4 @@
-name: 口袋小镇场景集成
+name: 独立场景审查与集成
 
 on:
   pull_request:
@@ -14,6 +14,7 @@ concurrency:
 env:
   PR_NUMBER: ${{ github.event.pull_request.number }}
   HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+  HEAD_REF: ${{ github.event.pull_request.head.ref }}
   BASE_SHA: ${{ github.event.pull_request.base.sha }}
 
 jobs:
@@ -21,7 +22,7 @@ jobs:
     if: >-
       ${{ !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'cursor/pocket-town' &&
+      contains(fromJSON('["cursor/room-in-computer","cursor/underwater-theater","cursor/mechanical-planetarium","cursor/llm-evolution"]'), github.event.pull_request.head.ref) &&
       github.event.pull_request.user.login == 'NovenBuilds' }}
     runs-on: macos-latest
     timeout-minutes: 20
@@ -34,6 +35,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          scene="${HEAD_REF#cursor/}"
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
             jq -e --arg head "$HEAD_SHA" --arg base "$BASE_SHA" '
               .state == "open" and (.draft | not) and
@@ -41,11 +43,14 @@ jobs:
               .changed_files > 0 and .changed_files <= 100
             ' >/dev/null
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" |
-            jq -e '
+            jq -e --arg scene "$scene" '
+              ("Scenes/" + $scene + "/") as $prefix |
               length > 0 and length <= 100 and
-              any(.[]; .filename | startswith("Scenes/pocket-town/")) and
+              any(.[]; .filename | startswith($prefix)) and
               all(.[]; .status != "renamed" and
-                (.filename | startswith("Scenes/pocket-town/") or . == ".github/workflows/codex-pilot.yml"))
+                ((.filename | startswith($prefix)) or
+                  ($scene == "room-in-computer" and .status == "modified" and
+                    .filename == ".github/workflows/codex-pilot.yml")))
             ' >/dev/null
           # 确认待审提交包含集成分支当前基线。
           gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" |
@@ -57,8 +62,9 @@ jobs:
       - name: 运行仓库工程检查
         run: |
           bash scripts/check.sh
-          python3 scripts/page.py check pocket-town
-          python3 scripts/page.py build pocket-town
+          scene="${HEAD_REF#cursor/}"
+          python3 scripts/page.py check "$scene"
+          python3 scripts/page.py build "$scene"
 
   merge:
     needs: check
@@ -77,10 +83,10 @@ jobs:
           path="repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER"
           for attempt in $(seq 1 36); do
             gh api "$path" |
-              jq -e --arg head "$HEAD_SHA" --arg base "$BASE_SHA" --arg repo "$GITHUB_REPOSITORY" '
+              jq -e --arg head "$HEAD_SHA" --arg base "$BASE_SHA" --arg repo "$GITHUB_REPOSITORY" --arg branch "$HEAD_REF" '
                 .state == "open" and (.draft | not) and .head.sha == $head and
                 .base.sha == $base and .base.ref == "integration" and
-                .head.repo.full_name == $repo and .head.ref == "cursor/pocket-town"
+                .head.repo.full_name == $repo and .head.ref == $branch
               ' >/dev/null
             clean_review=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" |
               jq -r --arg sha "$HEAD_SHA" '
