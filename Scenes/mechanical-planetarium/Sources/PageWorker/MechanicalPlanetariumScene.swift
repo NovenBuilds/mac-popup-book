@@ -335,7 +335,13 @@ final class MechanicalPlanetariumScene {
         sunLight.position = SCNVector3(0, 0, 0)
 
         let highlight = gameplay.canInteract
-        crankPivot.opacity = highlight ? 1 : 0.55
+        if !highlight {
+            crankPivot.opacity = 0.55
+        } else if gameplay.isPaused {
+            crankPivot.opacity = 0.62
+        } else {
+            crankPivot.opacity = 1
+        }
     }
 
     private func setFold(_ node: SCNNode, amount: Double) {

@@ -49,6 +49,54 @@ final class MechanicalPlanetariumGameplayTests: XCTestCase {
         XCTAssertFalse(state.isPaused)
     }
 
+    func testPausedBlocksManualDrive() {
+        var state = MechanicalPlanetariumGameplay()
+        let open = MechanicalPlanetariumFolding(progress: 1)
+        state.handleTap(.pauseToggle, folding: open, now: 0)
+        let turns = state.mechanism.turns
+        state.handleTap(.stepForward, folding: open, now: 1)
+        XCTAssertEqual(state.mechanism.turns, turns)
+        XCTAssertEqual(state.notice, .driveWhilePaused)
+        state.beginCrankDrag(x: 0.4, folding: open, now: 2)
+        XCTAssertFalse(state.draggingCrank)
+    }
+
+    func testObservationSnapEntersPause() {
+        var state = MechanicalPlanetariumGameplay()
+        let open = MechanicalPlanetariumFolding(progress: 1)
+        state.handleTap(.stepForward, folding: open, now: 0)
+        state.handleTap(.observeFullMoon, folding: open, now: 0)
+        XCTAssertTrue(state.isPaused)
+        XCTAssertEqual(state.mechanism.turns - floor(state.mechanism.turns), 0.5, accuracy: 1e-9)
+        let held = state.mechanism.turns
+        state.handleTap(.stepForward, folding: open, now: 1)
+        XCTAssertEqual(state.mechanism.turns, held)
+    }
+
+    func testPresentationActionsReflectPause() {
+        var state = MechanicalPlanetariumGameplay()
+        let open = MechanicalPlanetariumFolding(progress: 1)
+        state.advance(clock: 0, deltaTime: 0, folding: open)
+        var actions = state.presentationActions(zh: true)
+        XCTAssertTrue(actions[0].enabled)
+        XCTAssertTrue(actions[1].enabled)
+        XCTAssertEqual(actions[2].title, "暂停")
+        state.handleTap(.pauseToggle, folding: open, now: 0)
+        actions = state.presentationActions(zh: true)
+        XCTAssertFalse(actions[0].enabled)
+        XCTAssertFalse(actions[1].enabled)
+        XCTAssertEqual(actions[2].title, "恢复")
+    }
+
+    func testHandleActionMatchesTapTargets() {
+        var state = MechanicalPlanetariumGameplay()
+        let open = MechanicalPlanetariumFolding(progress: 1)
+        state.handleAction(MechanicalPlanetariumAction.stepForward, folding: open, now: 0)
+        XCTAssertGreaterThan(state.mechanism.turns, 0)
+        state.handleAction(MechanicalPlanetariumAction.pauseToggle, folding: open, now: 1)
+        XCTAssertTrue(state.isPaused)
+    }
+
     func testObservationSnapKeepsNearestCycle() {
         var state = MechanicalPlanetariumGameplay()
         state.mechanism.turns = 2.37

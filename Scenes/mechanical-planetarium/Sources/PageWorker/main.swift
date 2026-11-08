@@ -28,12 +28,12 @@ import PopupBookCore
                 guard let target = scene.pickTarget(x: event.x, y: event.y) else { return }
                 if target == .crank {
                     gameplay.beginCrankDrag(x: event.x, folding: folding, now: context.clock)
-                    crankDragActive = true
+                    crankDragActive = gameplay.draggingCrank
                 } else {
                     gameplay.handleTap(target, folding: folding, now: context.clock)
                 }
             case .drag, .move:
-                guard crankDragActive else { return }
+                guard crankDragActive, gameplay.canDriveMechanism else { return }
                 gameplay.updateCrankDrag(x: event.x)
             case .up:
                 if crankDragActive {
@@ -47,8 +47,12 @@ import PopupBookCore
         case .cancel:
             gameplay.cancelInteraction()
             crankDragActive = false
-        case .action:
-            break
+        case .action(let action):
+            let folding = MechanicalPlanetariumFolding(progress: context.progress)
+            gameplay.handleAction(action, folding: folding, now: context.clock)
+            if gameplay.isPaused {
+                crankDragActive = false
+            }
         }
     }
 
@@ -61,9 +65,13 @@ import PopupBookCore
         if let observation = gameplay.observationCaption(zh: zh) {
             caption += zh ? " \(observation)" : " \(observation)"
         }
+        let actions = gameplay.presentationActions(zh: zh).map {
+            PageAction($0.id, title: $0.title, enabled: $0.enabled)
+        }
         var presentation = PagePresentation(
             caption: caption,
-            accessibility: message("机械天文馆", "Mechanical Planetarium"))
+            accessibility: message("机械天文馆", "Mechanical Planetarium"),
+            actions: actions)
         if let notice = gameplay.notice {
             presentation.notice = noticeText(notice, zh: zh)
         }
@@ -105,7 +113,9 @@ import PopupBookCore
         case .needOpen:
             return zh ? "先展开支架与轨道，再转动曲柄。" : "Open the brackets and orbits before turning the crank."
         case .paused:
-            return zh ? "已暂停，仍可拖动曲柄微调。" : "Paused; you can still fine-tune with the crank."
+            return zh ? "机关已暂停。" : "Mechanism paused."
+        case .driveWhilePaused:
+            return zh ? "已暂停，先点恢复再拖动或步进。" : "Paused. Resume before turning or stepping."
         case .resumed:
             return zh ? "继续观察。" : "Observation resumed."
         case .steppedForward:

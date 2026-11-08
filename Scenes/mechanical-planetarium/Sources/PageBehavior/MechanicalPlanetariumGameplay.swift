@@ -7,6 +7,7 @@ public enum MechanicalPlanetariumNotice: String, Equatable, Sendable {
     case steppedForward
     case steppedBack
     case snappedObservation
+    case driveWhilePaused
 }
 
 public enum MechanicalPlanetariumTapTarget: Equatable, Sendable {
@@ -17,6 +18,12 @@ public enum MechanicalPlanetariumTapTarget: Equatable, Sendable {
     case observeNewMoon
     case observeFirstQuarter
     case observeFullMoon
+}
+
+public enum MechanicalPlanetariumAction {
+    public static let stepBack = "step-back"
+    public static let stepForward = "step-forward"
+    public static let pauseToggle = "pause-toggle"
 }
 
 public struct MechanicalPlanetariumGameplay: Equatable, Sendable {
@@ -46,6 +53,23 @@ public struct MechanicalPlanetariumGameplay: Equatable, Sendable {
         canInteract = false
     }
 
+    public var canDriveMechanism: Bool { canInteract && !isPaused }
+
+    public mutating func handleAction(
+        _ id: String, folding: MechanicalPlanetariumFolding, now: Double
+    ) {
+        switch id {
+        case MechanicalPlanetariumAction.stepBack:
+            handleTap(.stepBack, folding: folding, now: now)
+        case MechanicalPlanetariumAction.stepForward:
+            handleTap(.stepForward, folding: folding, now: now)
+        case MechanicalPlanetariumAction.pauseToggle:
+            handleTap(.pauseToggle, folding: folding, now: now)
+        default:
+            break
+        }
+    }
+
     public mutating func handleTap(
         _ target: MechanicalPlanetariumTapTarget, folding: MechanicalPlanetariumFolding, now: Double
     ) {
@@ -59,23 +83,34 @@ public struct MechanicalPlanetariumGameplay: Equatable, Sendable {
         case .crank:
             break
         case .stepBack:
+            guard canDriveMechanism else {
+                rejectDriveWhilePaused(until: now)
+                return
+            }
             mechanism.turns -= Self.stepTurns
             setNotice(.steppedBack, until: now + 1.2)
         case .stepForward:
+            guard canDriveMechanism else {
+                rejectDriveWhilePaused(until: now)
+                return
+            }
             mechanism.turns += Self.stepTurns
             setNotice(.steppedForward, until: now + 1.2)
         case .pauseToggle:
-            isPaused.toggle()
-            setNotice(isPaused ? .paused : .resumed, until: now + 1.4)
+            if isPaused {
+                isPaused = false
+                setNotice(.resumed, until: now + 1.4)
+            } else {
+                isPaused = true
+                endCrankDrag()
+                setNotice(.paused, until: now + 1.4)
+            }
         case .observeNewMoon:
-            mechanism.snapToObservation(0)
-            setNotice(.snappedObservation, until: now + 3)
+            snapObservation(index: 0, now: now)
         case .observeFirstQuarter:
-            mechanism.snapToObservation(1)
-            setNotice(.snappedObservation, until: now + 3)
+            snapObservation(index: 1, now: now)
         case .observeFullMoon:
-            mechanism.snapToObservation(2)
-            setNotice(.snappedObservation, until: now + 3)
+            snapObservation(index: 2, now: now)
         }
     }
 
@@ -85,12 +120,16 @@ public struct MechanicalPlanetariumGameplay: Equatable, Sendable {
             setNotice(.needOpen, until: now + 2)
             return
         }
+        guard canDriveMechanism else {
+            rejectDriveWhilePaused(until: now)
+            return
+        }
         draggingCrank = true
         dragAnchorX = x
     }
 
     public mutating func updateCrankDrag(x: Double) {
-        guard draggingCrank, let anchor = dragAnchorX else { return }
+        guard canDriveMechanism, draggingCrank, let anchor = dragAnchorX else { return }
         let delta = x - anchor
         guard delta.isFinite, abs(delta) > 1e-6 else { return }
         mechanism.turns += delta * Self.dragTurnsPerUnit
@@ -119,10 +158,14 @@ public struct MechanicalPlanetariumGameplay: Equatable, Sendable {
             return zh ? "机械天文馆" : "Mechanical Planetarium"
         }
         let phase = mechanism.lunarPhaseName(zh: zh)
-        let pause = isPaused ? (zh ? "已暂停" : "Paused") : (zh ? "运行中" : "Running")
+        if isPaused {
+            return zh
+                ? "已暂停，\(phase)定格。点恢复或下方控制再继续。"
+                : "Paused at \(phase). Resume or use the controls below to continue."
+        }
         return zh
-            ? "拖动曲柄或点按左右步进。当前\(phase)，\(pause)。"
-            : "Drag the crank or tap step controls. \(phase), \(pause)."
+            ? "拖动曲柄或点按步进。当前\(phase)，运行中。"
+            : "Drag the crank or tap step controls. \(phase), running."
     }
 
     public func disclaimer(zh: Bool) -> String {
@@ -135,6 +178,30 @@ public struct MechanicalPlanetariumGameplay: Equatable, Sendable {
         guard let index = mechanism.nearestObservationIndex() else { return nil }
         let hint = Self.observationHints[index]
         return zh ? hint.zh : hint.en
+    }
+
+    public func presentationActions(zh: Bool) -> [(id: String, title: String, enabled: Bool)] {
+        let drive = canDriveMechanism
+        let pauseTitle =
+            isPaused
+            ? (zh ? "恢复" : "Resume")
+            : (zh ? "暂停" : "Pause")
+        return [
+            (MechanicalPlanetariumAction.stepBack, zh ? "后退" : "Step back", drive),
+            (MechanicalPlanetariumAction.stepForward, zh ? "前进" : "Step forward", drive),
+            (MechanicalPlanetariumAction.pauseToggle, pauseTitle, canInteract),
+        ]
+    }
+
+    private mutating func snapObservation(index: Int, now: Double) {
+        mechanism.snapToObservation(index)
+        isPaused = true
+        endCrankDrag()
+        setNotice(.snappedObservation, until: now + 3)
+    }
+
+    private mutating func rejectDriveWhilePaused(until: Double) {
+        setNotice(.driveWhilePaused, until: until + 1.6)
     }
 
     private mutating func updateInteractionGate(folding: MechanicalPlanetariumFolding) {
