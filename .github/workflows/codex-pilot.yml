@@ -1,4 +1,4 @@
-name: 单个 PR 的 Codex 联动试跑
+name: 口袋小镇场景集成
 
 on:
   pull_request:
@@ -21,7 +21,7 @@ jobs:
     if: >-
       ${{ !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'cursor/actions-pilot' &&
+      github.event.pull_request.head.ref == 'cursor/pocket-town' &&
       github.event.pull_request.user.login == 'NovenBuilds' }}
     runs-on: macos-latest
     timeout-minutes: 20
@@ -29,7 +29,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - name: 核对提交和试跑范围
+      - name: 核对提交和场景修改范围
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -37,13 +37,15 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
             jq -e --arg head "$HEAD_SHA" --arg base "$BASE_SHA" '
               .state == "open" and (.draft | not) and
-              .head.sha == $head and .base.sha == $base and .changed_files == 2
+              .head.sha == $head and .base.sha == $base and
+              .changed_files > 0 and .changed_files <= 100
             ' >/dev/null
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" |
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" |
             jq -e '
-              all(.[]; .status == "modified") and
-              (map(.filename) | sort) ==
-                [".github/workflows/codex-pilot.yml", "docs/engineering/SCENE_WORKFLOW.md"]
+              length > 0 and length <= 100 and
+              any(.[]; .filename | startswith("Scenes/pocket-town/")) and
+              all(.[]; .status != "renamed" and
+                (.filename | startswith("Scenes/pocket-town/") or . == ".github/workflows/codex-pilot.yml"))
             ' >/dev/null
           # 确认待审提交包含集成分支当前基线。
           gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" |
@@ -53,7 +55,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: 运行仓库工程检查
-        run: bash scripts/check.sh
+        run: |
+          bash scripts/check.sh
+          python3 scripts/page.py check pocket-town
+          python3 scripts/page.py build pocket-town
 
   merge:
     needs: check
@@ -75,7 +80,7 @@ jobs:
               jq -e --arg head "$HEAD_SHA" --arg base "$BASE_SHA" --arg repo "$GITHUB_REPOSITORY" '
                 .state == "open" and (.draft | not) and .head.sha == $head and
                 .base.sha == $base and .base.ref == "integration" and
-                .head.repo.full_name == $repo and .head.ref == "cursor/actions-pilot"
+                .head.repo.full_name == $repo and .head.ref == "cursor/pocket-town"
               ' >/dev/null
             clean_review=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" |
               jq -r --arg sha "$HEAD_SHA" '
