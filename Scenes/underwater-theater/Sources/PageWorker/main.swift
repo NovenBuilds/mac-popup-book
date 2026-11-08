@@ -24,15 +24,18 @@ import PopupBookCore
             guard event.valid else { return }
             switch event.kind {
             case .down:
+                let point = scene.flowPoint(x: event.x, y: event.y)
                 let tap =
-                    scene.pickTarget(x: event.x, y: event.y) ?? gameplay.tapTarget(at: event.x, y: event.y)
+                    scene.pickTarget(x: event.x, y: event.y) ?? point.flatMap { gameplay.tapTarget(at: $0) }
                 if let tap {
                     gameplay.handleTap(tap, folding: folding, now: context.clock)
-                } else {
-                    gameplay.beginDrag(x: event.x, y: event.y, folding: folding, now: context.clock)
+                } else if let point {
+                    gameplay.beginDrag(at: point, folding: folding, now: context.clock)
                 }
             case .move, .drag:
-                gameplay.moveDrag(x: event.x, y: event.y, folding: folding)
+                if let point = scene.flowPoint(x: event.x, y: event.y) {
+                    gameplay.moveDrag(to: point, folding: folding)
+                }
             case .up:
                 gameplay.endDrag(now: context.clock)
             case .cancel:

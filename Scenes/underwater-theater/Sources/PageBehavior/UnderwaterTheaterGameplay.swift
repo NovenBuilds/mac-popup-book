@@ -9,8 +9,7 @@ public enum UnderwaterTheaterNotice: String, Equatable, Sendable {
 }
 
 public struct UnderwaterTheaterGameplay: Equatable, Sendable {
-    public var flowX: Double
-    public var flowY: Double
+    public private(set) var flowPoint: TheaterPoint
     public private(set) var flowStrength: Double
     public private(set) var dragging: Bool
     public var fishProgress: Double
@@ -23,11 +22,10 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
     public static let patrolDuration = 28.0
     public static let flowDecayPerSecond = 1.35
     public static let foldedResetProgress = 0.22
-    public static let tapHitRadius = 0.11
+    public static let tapHitRadius = 0.2
 
     public init() {
-        flowX = 0.5
-        flowY = 0.5
+        flowPoint = TheaterPoint(0, 0)
         flowStrength = 0
         dragging = false
         fishProgress = 0
@@ -42,10 +40,6 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
         if value.isNaN { return 0 }
         guard value.isFinite else { return value.sign == .minus ? 0 : 1 }
         return min(1, max(0, value))
-    }
-
-    public static func normalizedToScene(x: Double, y: Double) -> TheaterPoint {
-        TheaterPoint((x - 0.5) * 3.1, (0.52 - y) * 2.15)
     }
 
     public mutating func handleTap(
@@ -69,15 +63,14 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
             preset = .shellLedge
             notice = .shellCurrent
         }
-        flowX = preset.flow.x
-        flowY = preset.flow.y
+        flowPoint = preset.sceneHint
         flowStrength = 1
         dragging = false
         setNotice(notice, until: now + 1.4)
     }
 
     public mutating func beginDrag(
-        x: Double, y: Double, folding: UnderwaterTheaterFolding, now: Double
+        at point: TheaterPoint, folding: UnderwaterTheaterFolding, now: Double
     ) {
         updateInteractionGate(folding: folding)
         guard canInteract else {
@@ -85,17 +78,15 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
             return
         }
         dragging = true
-        flowX = Self.clamp(x)
-        flowY = Self.clamp(y)
+        flowPoint = UnderwaterTheaterSteering.clampToPage(point)
         flowStrength = 1
         notice = nil
     }
 
-    public mutating func moveDrag(x: Double, y: Double, folding: UnderwaterTheaterFolding) {
+    public mutating func moveDrag(to point: TheaterPoint, folding: UnderwaterTheaterFolding) {
         updateInteractionGate(folding: folding)
         guard dragging, canInteract else { return }
-        flowX = Self.clamp(x)
-        flowY = Self.clamp(y)
+        flowPoint = UnderwaterTheaterSteering.clampToPage(point)
         flowStrength = 1
     }
 
@@ -133,7 +124,7 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
                 flowStrength: 0, dragging: false)
         } else if folding.fish >= 0.55 {
             let guide = flowStrength * (dragging ? 1.0 : 0.65)
-            let flowScene = Self.normalizedToScene(x: flowX, y: flowY)
+            let flowScene = flowPoint
             let sample = sampler().sample(fishProgress)
             let toward = flowScene - sample.position
             let distSq = toward.x * toward.x + toward.y * toward.y
@@ -181,10 +172,9 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
         TheaterTrackSampler(points: UnderwaterTheaterTracks.patrolLoop)
     }
 
-    public func tapTarget(at x: Double, y: Double) -> UnderwaterTheaterTapTarget? {
-        let point = TheaterPoint(x, y)
+    public func tapTarget(at point: TheaterPoint) -> UnderwaterTheaterTapTarget? {
         for preset in UnderwaterTheaterTracks.TapCurrent.allCases {
-            let flow = preset.flow
+            let flow = preset.sceneHint
             let delta = point - flow
             if delta.x * delta.x + delta.y * delta.y <= Self.tapHitRadius * Self.tapHitRadius {
                 switch preset {
@@ -206,7 +196,7 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
         let steerHeading: Double
         let offsetMagSq = fishOffset.x * fishOffset.x + fishOffset.y * fishOffset.y
         if offsetMagSq > 0.0004 {
-            steerHeading = atan2(fishOffset.x, fishOffset.y)
+            steerHeading = atan2(fishOffset.y, fishOffset.x)
         } else {
             steerHeading = sample.heading
         }

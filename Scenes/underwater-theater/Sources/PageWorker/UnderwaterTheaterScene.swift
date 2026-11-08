@@ -30,6 +30,21 @@ final class UnderwaterTheaterScene {
         viewport = size
     }
 
+    private static let flowPlaneHeight = 0.38
+
+    func flowPoint(x: Double, y: Double) -> TheaterPoint? {
+        guard viewport.width > 1, viewport.height > 1 else { return nil }
+        let near = renderer.unprojectPoint(SCNVector3(x * viewport.width, y * viewport.height, 0))
+        let far = renderer.unprojectPoint(SCNVector3(x * viewport.width, y * viewport.height, 1))
+        let vertical = Double(far.y - near.y)
+        guard abs(vertical) > 1e-6 else { return nil }
+        let distance = (Self.flowPlaneHeight - Double(near.y)) / vertical
+        let worldX = Double(near.x) + Double(far.x - near.x) * distance
+        let worldZ = Double(near.z) + Double(far.z - near.z) * distance
+        guard worldX.isFinite, worldZ.isFinite else { return nil }
+        return TheaterPoint(worldX, worldZ)
+    }
+
     func pickTarget(x: Double, y: Double) -> UnderwaterTheaterTapTarget? {
         let point = CGPoint(x: x * viewport.width, y: y * viewport.height)
         let options: [SCNHitTestOption: Any] = [
@@ -302,10 +317,10 @@ final class UnderwaterTheaterScene {
             plane.position.y = CGFloat(height)
         }
 
-        let flowScene = UnderwaterTheaterGameplay.normalizedToScene(x: gameplay.flowX, y: gameplay.flowY)
+        let flowScene = gameplay.flowPoint
         let showFlow = gameplay.canInteract && gameplay.flowStrength > 0.04
         flowBead.isHidden = !showFlow
-        flowBead.position = SCNVector3(flowScene.x, 0.38, flowScene.y)
+        flowBead.position = SCNVector3(flowScene.x, Self.flowPlaneHeight, flowScene.y)
         flowBead.opacity = CGFloat(min(1, gameplay.flowStrength * (gameplay.dragging ? 1 : 0.75)))
 
         let school = gameplay.schoolCenter()
@@ -317,7 +332,7 @@ final class UnderwaterTheaterScene {
             fish.position = SCNVector3(
                 school.position.x + offset.x, 0.08 + Double(index % 3) * 0.02,
                 school.position.y + offset.y)
-            fish.eulerAngles.y = CGFloat(heading)
+            fish.eulerAngles.y = CGFloat(-heading)
             let behindVeil = school.position.x < -0.2 && gameplay.fishProgress < 0.12
             fish.isHidden = fishHide || (behindVeil && folding.fish < 0.65)
             fish.opacity = CGFloat(min(1, folding.fish * 1.1))

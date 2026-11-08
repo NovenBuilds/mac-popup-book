@@ -45,14 +45,6 @@ public enum UnderwaterTheaterTracks {
         case archRise
         case shellLedge
 
-        public var flow: TheaterPoint {
-            switch self {
-            case .westSeaweed: TheaterPoint(0.2, 0.56)
-            case .archRise: TheaterPoint(0.5, 0.46)
-            case .shellLedge: TheaterPoint(0.78, 0.54)
-            }
-        }
-
         public var sceneHint: TheaterPoint {
             switch self {
             case .westSeaweed: TheaterPoint(-0.72, 0.18)
@@ -92,7 +84,7 @@ public struct TheaterTrackSampler: Equatable, Sendable {
                 let start = points[index]
                 let end = points[index + 1]
                 let position = start + (end - start) * t
-                let heading = atan2(end.x - start.x, end.y - start.y)
+                let heading = atan2(end.y - start.y, end.x - start.x)
                 return (position, heading)
             }
             remaining -= length

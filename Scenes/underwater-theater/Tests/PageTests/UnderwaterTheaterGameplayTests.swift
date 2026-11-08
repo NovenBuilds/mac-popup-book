@@ -8,13 +8,13 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
         state.handleTap(.archRise, folding: open, now: 0)
         XCTAssertEqual(state.flowStrength, 1)
         XCTAssertEqual(state.notice, .archCurrent)
-        XCTAssertEqual(state.flowX, UnderwaterTheaterTracks.TapCurrent.archRise.flow.x, accuracy: 0.001)
+        XCTAssertEqual(state.flowPoint, UnderwaterTheaterTracks.TapCurrent.archRise.sceneHint)
     }
 
     func testInteractionBlockedWhenFolded() {
         var state = UnderwaterTheaterGameplay()
         let closed = UnderwaterTheaterFolding(progress: 0.15)
-        state.beginDrag(x: 0.5, y: 0.5, folding: closed, now: 0)
+        state.beginDrag(at: TheaterPoint(0.000, 0.043), folding: closed, now: 0)
         XCTAssertFalse(state.dragging)
         XCTAssertEqual(state.notice, .needOpen)
     }
@@ -22,7 +22,7 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
     func testFlowDecaysAfterRelease() {
         var state = UnderwaterTheaterGameplay()
         let open = UnderwaterTheaterFolding(progress: 1)
-        state.beginDrag(x: 0.42, y: 0.52, folding: open, now: 0)
+        state.beginDrag(at: TheaterPoint(-0.248, 0.000), folding: open, now: 0)
         state.endDrag(now: 0.2)
         XCTAssertFalse(state.dragging)
         state.advance(bookProgress: 1, clock: 0.3, deltaTime: 0.8, folding: open)
@@ -32,8 +32,8 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
     func testDragKeepsFlowStrength() {
         var state = UnderwaterTheaterGameplay()
         let open = UnderwaterTheaterFolding(progress: 1)
-        state.beginDrag(x: 0.5, y: 0.5, folding: open, now: 0)
-        state.moveDrag(x: 0.55, y: 0.48, folding: open)
+        state.beginDrag(at: TheaterPoint(0.000, 0.043), folding: open, now: 0)
+        state.moveDrag(to: TheaterPoint(0.155, 0.086), folding: open)
         state.advance(bookProgress: 1, clock: 0.1, deltaTime: 0.5, folding: open)
         XCTAssertEqual(state.flowStrength, 1)
     }
@@ -60,9 +60,16 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
 
     func testTapTargetsCoverThreeAlternatives() {
         let state = UnderwaterTheaterGameplay()
-        XCTAssertEqual(state.tapTarget(at: 0.2, y: 0.56), .westSeaweed)
-        XCTAssertEqual(state.tapTarget(at: 0.5, y: 0.46), .archRise)
-        XCTAssertEqual(state.tapTarget(at: 0.78, y: 0.54), .shellLedge)
+        XCTAssertEqual(state.tapTarget(at: TheaterPoint(-0.72, 0.18)), .westSeaweed)
+        XCTAssertEqual(state.tapTarget(at: TheaterPoint(0.02, 0.32)), .archRise)
+        XCTAssertEqual(state.tapTarget(at: TheaterPoint(0.72, 0.06)), .shellLedge)
+    }
+
+    func testTrackHeadingUsesPositiveXAsForward() {
+        let east = TheaterTrackSampler(points: [TheaterPoint(0, 0), TheaterPoint(1, 0)])
+        let forward = TheaterTrackSampler(points: [TheaterPoint(0, 0), TheaterPoint(0, 1)])
+        XCTAssertEqual(east.sample(0.5).heading, 0, accuracy: 0.0001)
+        XCTAssertEqual(forward.sample(0.5).heading, .pi / 2, accuracy: 0.0001)
     }
 
     func testPatrolLoopHasArchPoint() {
@@ -78,14 +85,14 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
         west.fishProgress = 0.28
         east.fishProgress = 0.28
 
-        west.beginDrag(x: 0.2, y: 0.56, folding: open, now: 0)
-        east.beginDrag(x: 0.78, y: 0.54, folding: open, now: 0)
+        west.beginDrag(at: TheaterPoint(-0.930, -0.086), folding: open, now: 0)
+        east.beginDrag(at: TheaterPoint(0.868, -0.043), folding: open, now: 0)
         for step in 0..<30 {
             let time = Double(step) * 0.1
             west.fishProgress = 0.28
             east.fishProgress = 0.28
-            west.moveDrag(x: 0.2, y: 0.56, folding: open)
-            east.moveDrag(x: 0.78, y: 0.54, folding: open)
+            west.moveDrag(to: TheaterPoint(-0.930, -0.086), folding: open)
+            east.moveDrag(to: TheaterPoint(0.868, -0.043), folding: open)
             west.advance(bookProgress: 1, clock: time, deltaTime: 0.1, folding: open)
             east.advance(bookProgress: 1, clock: time, deltaTime: 0.1, folding: open)
         }
@@ -99,7 +106,7 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
         var state = UnderwaterTheaterGameplay()
         let open = UnderwaterTheaterFolding(progress: 1)
         state.fishProgress = 0.32
-        state.beginDrag(x: 0.78, y: 0.54, folding: open, now: 0)
+        state.beginDrag(at: TheaterPoint(0.868, -0.043), folding: open, now: 0)
         state.advance(bookProgress: 1, clock: 0.2, deltaTime: 1.2, folding: open)
         let peaked = state.fishOffset
         XCTAssertGreaterThan(hypot(peaked.x, peaked.y), 0.04)
@@ -117,7 +124,7 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
         var state = UnderwaterTheaterGameplay()
         let open = UnderwaterTheaterFolding(progress: 1)
         state.fishProgress = 0.2
-        state.beginDrag(x: 0.12, y: 0.7, folding: open, now: 0)
+        state.beginDrag(at: TheaterPoint(-1.178, -0.387), folding: open, now: 0)
         state.advance(bookProgress: 1, clock: 0, deltaTime: 2.5, folding: open)
         let center = state.schoolCenter().position
         XCTAssertGreaterThanOrEqual(center.x, UnderwaterTheaterSteering.minBoundsX)
