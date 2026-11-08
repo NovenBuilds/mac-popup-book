@@ -116,10 +116,9 @@ final class RoomInComputerScene {
             anchorZ: -0.62)
         scene.rootNode.addChildNode(backWallFold)
 
-        sideWallFold = foldedPanel(
-            width: 0.04, height: 0.9, depth: 1.35, color: color(0.72, 0.68, 0.6),
-            anchorZ: -0.62, axisX: true)
-        sideWallFold.position = SCNVector3(-1.08, 0, 0.05)
+        sideWallFold = foldedSideWall(
+            thickness: 0.04, height: 0.9, depth: 1.35, color: color(0.72, 0.68, 0.6))
+        sideWallFold.position = SCNVector3(-1.1, 0, 0.05)
         scene.rootNode.addChildNode(sideWallFold)
 
         buildWindow(on: backWallFold)
@@ -149,7 +148,7 @@ final class RoomInComputerScene {
 
     private func buildBed() -> SCNNode {
         let pivot = foldedBox(width: 0.72, height: 0.16, depth: 0.48, color: color(0.68, 0.62, 0.82))
-        pivot.position = SCNVector3(-0.42, 0.02, -0.35)
+        pivot.position = SCNVector3(-0.42, 0, -0.35)
         guard let base = pivot.childNodes.first else { return pivot }
         let pillow = box(width: 0.22, height: 0.06, depth: 0.18, color: color(0.92, 0.9, 0.84))
         pillow.position = SCNVector3(-0.2, 0.1, -0.14)
@@ -161,34 +160,51 @@ final class RoomInComputerScene {
     }
 
     private func buildDesk() -> SCNNode {
-        let pivot = foldedBox(width: 0.58, height: 0.05, depth: 0.32, color: color(0.48, 0.4, 0.32))
-        pivot.position = SCNVector3(0.38, 0.02, 0.02)
-        guard let top = pivot.childNodes.first else { return pivot }
-        let legL = box(width: 0.04, height: 0.22, depth: 0.04, color: color(0.42, 0.36, 0.28))
-        legL.position = SCNVector3(-0.22, -0.12, -0.12)
-        top.addChildNode(legL)
-        let legR = legL.clone()
-        legR.position = SCNVector3(0.22, -0.12, 0.12)
-        top.addChildNode(legR)
+        let legHeight = 0.22
+        let topThickness = 0.05
+        let totalHeight = legHeight + topThickness
+        let pivot = SCNNode()
+        pivot.position = SCNVector3(0.38, 0, 0.02)
+        let group = SCNNode()
+        group.position.y = CGFloat(totalHeight / 2)
+        let top = box(width: 0.58, height: topThickness, depth: 0.32, color: color(0.48, 0.4, 0.32))
+        top.position.y = CGFloat(legHeight + topThickness / 2 - totalHeight / 2)
+        group.addChildNode(top)
+        for xLeg: Double in [-0.22, 0.22] {
+            for zLeg: Double in [-0.12, 0.12] {
+                let leg = box(width: 0.04, height: legHeight, depth: 0.04, color: color(0.42, 0.36, 0.28))
+                leg.position = SCNVector3(xLeg, legHeight / 2 - totalHeight / 2, zLeg)
+                group.addChildNode(leg)
+            }
+        }
         let book = box(width: 0.14, height: 0.03, depth: 0.1, color: color(0.58, 0.32, 0.28))
-        book.position = SCNVector3(0, 0.04, 0)
-        top.addChildNode(book)
+        book.position = SCNVector3(0, legHeight + topThickness / 2 + 0.015 - totalHeight / 2, 0)
+        group.addChildNode(book)
+        pivot.addChildNode(group)
         return pivot
     }
 
     private func buildChair() -> SCNNode {
-        let pivot = foldedBox(width: 0.28, height: 0.06, depth: 0.28, color: color(0.5, 0.38, 0.3))
-        pivot.position = SCNVector3(0.12, 0.02, 0.32)
-        guard let seat = pivot.childNodes.first else { return pivot }
-        let back = box(width: 0.28, height: 0.28, depth: 0.04, color: color(0.48, 0.36, 0.28))
-        back.position = SCNVector3(0, 0.16, -0.12)
-        seat.addChildNode(back)
+        let seatHeight = 0.06
+        let backHeight = 0.28
+        let totalHeight = seatHeight + backHeight
+        let pivot = SCNNode()
+        pivot.position = SCNVector3(0.12, 0, 0.32)
+        let group = SCNNode()
+        group.position.y = CGFloat(totalHeight / 2)
+        let seat = box(width: 0.28, height: seatHeight, depth: 0.28, color: color(0.5, 0.38, 0.3))
+        seat.position.y = CGFloat(seatHeight / 2 - totalHeight / 2)
+        group.addChildNode(seat)
+        let back = box(width: 0.28, height: backHeight, depth: 0.04, color: color(0.48, 0.36, 0.28))
+        back.position = SCNVector3(0, seatHeight + backHeight / 2 - totalHeight / 2, -0.12)
+        group.addChildNode(back)
+        pivot.addChildNode(group)
         return pivot
     }
 
     private func buildLamp() -> SCNNode {
         let pivot = SCNNode()
-        pivot.position = SCNVector3(-0.15, 0.75, 0.18)
+        pivot.position = SCNVector3(-0.15, 0, 0.18)
         let cord = box(width: 0.01, height: 0.22, depth: 0.01, color: color(0.3, 0.28, 0.26))
         cord.position = SCNVector3(0, 0.1, 0)
         pivot.addChildNode(cord)
@@ -275,7 +291,7 @@ final class RoomInComputerScene {
         setFold(bedFold, amount: folding.bed)
         setFold(deskFold, amount: folding.desk)
         setFold(chairFold, amount: folding.chair)
-        lampFold.position.y = 0.22 + folding.lamp * 0.53
+        lampFold.position.y = folding.lamp * 0.75
         lampFold.isHidden = folding.lamp < 0.05
 
         let guest = gameplay.guestDisplay
@@ -339,21 +355,22 @@ final class RoomInComputerScene {
     }
 
     private func foldedPanel(
-        width: Double, height: Double, depth: Double, color: NSColor, anchorZ: Double,
-        axisX: Bool = false
+        width: Double, height: Double, depth: Double, color: NSColor, anchorZ: Double
     ) -> SCNNode {
         let pivot = SCNNode()
-        if axisX {
-            pivot.position = SCNVector3(0, height / 2, anchorZ)
-        } else {
-            pivot.position = SCNVector3(0, 0, anchorZ)
-        }
+        pivot.position = SCNVector3(0, 0, anchorZ)
         let panel = box(width: width, height: height, depth: depth, color: color)
-        if axisX {
-            panel.position = SCNVector3(0, 0, -anchorZ + height / 2)
-        } else {
-            panel.position = SCNVector3(0, height / 2, 0)
-        }
+        panel.position = SCNVector3(0, height / 2, 0)
+        pivot.addChildNode(panel)
+        return pivot
+    }
+
+    private func foldedSideWall(
+        thickness: Double, height: Double, depth: Double, color: NSColor
+    ) -> SCNNode {
+        let pivot = SCNNode()
+        let panel = box(width: thickness, height: height, depth: depth, color: color)
+        panel.position = SCNVector3(thickness / 2, height / 2, 0)
         pivot.addChildNode(panel)
         return pivot
     }

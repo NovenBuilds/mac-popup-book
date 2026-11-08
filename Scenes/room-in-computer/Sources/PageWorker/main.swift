@@ -39,11 +39,8 @@ import PopupBookCore
                 }
             case .drag, .move:
                 guard stripActive else { return }
-                if let target = scene.pickStrip(x: event.x, y: event.y) {
-                    gameplay.handleStrip(target)
-                } else {
-                    gameplay.handleStrip(.dragX(event.x))
-                }
+                guard let target = scene.pickStrip(x: event.x, y: event.y) else { return }
+                gameplay.handleStrip(target)
             case .up, .cancel:
                 if stripActive {
                     stripActive = false
@@ -97,6 +94,10 @@ import PopupBookCore
             return message("已从备份恢复房间时光。", "Room time restored from backup.")
         case .saveProtected:
             return message("原存档已保留，本次仍可拨动时光。", "Your save is safe. You can still move time.")
+        case .futureMainReadOnly:
+            return message(
+                "主存档为更高版本，已用备份显示且不会写回。",
+                "Main save uses a newer format; backup is shown read-only.")
         }
     }
 

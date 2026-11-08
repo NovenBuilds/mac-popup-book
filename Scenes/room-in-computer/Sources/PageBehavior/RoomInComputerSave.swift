@@ -4,6 +4,7 @@ import PopupBookCore
 public enum RoomSaveNoticeKey: Equatable, Sendable {
     case backupRestored
     case saveProtected
+    case futureMainReadOnly
 }
 
 public struct RoomInComputerRestoreResult: Equatable, Sendable {
@@ -21,6 +22,10 @@ public struct RoomInComputerRestoreResult: Equatable, Sendable {
 public enum RoomInComputerSave {
     public static func restore(state: Data?, backup: Data?) -> RoomInComputerRestoreResult {
         guard let state else {
+            if let backup, let snapshot = try? RoomInComputerSnapshot.decoded(backup) {
+                return RoomInComputerRestoreResult(
+                    gameplay: RoomInComputerGameplay(restoredTime: snapshot.roomTime), canSave: true)
+            }
             return RoomInComputerRestoreResult(gameplay: RoomInComputerGameplay(), canSave: true)
         }
         do {
@@ -28,6 +33,12 @@ public enum RoomInComputerSave {
             return RoomInComputerRestoreResult(
                 gameplay: RoomInComputerGameplay(restoredTime: snapshot.roomTime), canSave: true)
         } catch {
+            if isFutureVersion(error), let backup, let snapshot = try? RoomInComputerSnapshot.decoded(backup)
+            {
+                return RoomInComputerRestoreResult(
+                    gameplay: RoomInComputerGameplay(restoredTime: snapshot.roomTime),
+                    canSave: false, notice: .futureMainReadOnly)
+            }
             if let backup, let snapshot = try? RoomInComputerSnapshot.decoded(backup) {
                 return RoomInComputerRestoreResult(
                     gameplay: RoomInComputerGameplay(restoredTime: snapshot.roomTime),
@@ -36,6 +47,11 @@ public enum RoomInComputerSave {
             return RoomInComputerRestoreResult(
                 gameplay: RoomInComputerGameplay(), canSave: false, notice: .saveProtected)
         }
+    }
+
+    private static func isFutureVersion(_ error: Error) -> Bool {
+        if case StateRestoreError.unsupportedVersion = error { return true }
+        return false
     }
 
     public static func checkpoint(from gameplay: RoomInComputerGameplay, canSave: Bool) -> Data? {

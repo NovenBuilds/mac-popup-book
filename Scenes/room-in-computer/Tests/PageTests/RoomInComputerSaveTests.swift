@@ -40,4 +40,22 @@ final class RoomInComputerSaveTests: XCTestCase {
         XCTAssertTrue(result.canSave)
         XCTAssertNil(result.notice)
     }
+
+    func testFutureMainWithOldBackupIsReadOnly() throws {
+        let futureMain = Data("{\"version\":2,\"roomTime\":0.1}".utf8)
+        let backup = try JSONEncoder().encode(RoomInComputerSnapshot(roomTime: 0.72))
+        let result = RoomInComputerSave.restore(state: futureMain, backup: backup)
+        XCTAssertEqual(result.gameplay.roomTime, 0.72)
+        XCTAssertFalse(result.canSave)
+        XCTAssertEqual(result.notice, .futureMainReadOnly)
+        XCTAssertNil(RoomInComputerSave.checkpoint(from: result.gameplay, canSave: result.canSave))
+    }
+
+    func testMissingMainUsesValidBackup() throws {
+        let backup = try JSONEncoder().encode(RoomInComputerSnapshot(roomTime: 0.44))
+        let result = RoomInComputerSave.restore(state: nil, backup: backup)
+        XCTAssertEqual(result.gameplay.roomTime, 0.44)
+        XCTAssertTrue(result.canSave)
+        XCTAssertNil(result.notice)
+    }
 }
