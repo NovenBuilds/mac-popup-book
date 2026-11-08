@@ -49,7 +49,7 @@ final class LLMEvolutionScene {
     private var tapeSegments: [TapeSegment] = []
     private var branchSegments: [TapeSegment] = []
     private var boothRoots: [LLMEvolutionBooth: SCNNode] = [:]
-    private var exampleHits: [SCNNode] = []
+    private var exampleChips: [SCNNode] = []
     private var bridgeNodes: [SCNNode] = []
     private var sourceHit = SCNNode()
     private var deskFold = SCNNode()
@@ -161,16 +161,11 @@ final class LLMEvolutionScene {
         for (index, example) in LLMEvolutionExample.allCases.enumerated() {
             let chip = box(width: 0.34, height: 0.05, depth: 0.2, color: color(0.94, 0.9, 0.82))
             chip.position = SCNVector3(-1.55, 0.12 + Double(index) * 0.22, 0.42)
+            chip.name = LLMEvolutionLayout.HitNames.example(example)
             scene.rootNode.addChildNode(chip)
-            let hit = box(width: 0.4, height: 0.18, depth: 0.26, color: .clear)
-            hit.name = LLMEvolutionLayout.HitNames.example(example)
-            hit.opacity = 0.001
-            hit.position = chip.position
-            hit.position.y = 0.18
-            exampleHits.append(chip)
-            scene.rootNode.addChildNode(hit)
+            exampleChips.append(chip)
 
-            let tag = textPlane(labels[index], size: 0.08)
+            let tag = exampleLabel(labels[index], height: 0.08)
             tag.position = SCNVector3(0, 0.03, 0)
             chip.addChildNode(tag)
         }
@@ -321,7 +316,7 @@ final class LLMEvolutionScene {
             }
         }
 
-        for (index, exampleNode) in exampleHits.enumerated() {
+        for (index, exampleNode) in exampleChips.enumerated() {
             let selected = index == gameplay.selectedExample.rawValue
             exampleNode.geometry?.firstMaterial?.diffuse.contents =
                 selected ? color(0.98, 0.92, 0.72) : color(0.94, 0.9, 0.82)
@@ -361,11 +356,17 @@ final class LLMEvolutionScene {
         NSColor(calibratedRed: red, green: green, blue: blue, alpha: alpha)
     }
 
-    private func textPlane(_ text: String, size: Double) -> SCNNode {
-        let plane = SCNPlane(width: size * 2.2, height: size)
-        plane.firstMaterial?.diffuse.contents = color(0.25, 0.28, 0.32)
-        plane.firstMaterial?.isDoubleSided = true
-        let node = SCNNode(geometry: plane)
+    private func exampleLabel(_ label: String, height: Double) -> SCNNode {
+        let text = SCNText(string: label, extrusionDepth: 0)
+        text.font = .systemFont(ofSize: 20, weight: .semibold)
+        text.flatness = 0.15
+        text.firstMaterial?.diffuse.contents = color(0.18, 0.20, 0.25)
+        text.firstMaterial?.lightingModel = .constant
+        let node = SCNNode(geometry: text)
+        let (min, max) = node.boundingBox
+        let scale = height / Double(max.y - min.y)
+        node.pivot = SCNMatrix4MakeTranslation((min.x + max.x) / 2, (min.y + max.y) / 2, 0)
+        node.scale = SCNVector3(scale, scale, scale)
         node.eulerAngles.x = -.pi / 2
         return node
     }
