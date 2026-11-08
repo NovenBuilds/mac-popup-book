@@ -63,6 +63,7 @@ public struct RoomInComputerGameplay: Equatable, Sendable {
     public private(set) var guestFrom: RoomGuestPose
     public private(set) var guestTo: RoomGuestPose
     public private(set) var guestMove: Double
+    public private(set) var guestPath: [RoomGuestWaypoint] = []
     public var draggingStrip: Bool
     private var guestShelvedForFold = false
 
@@ -83,6 +84,7 @@ public struct RoomInComputerGameplay: Equatable, Sendable {
         guestFrom = pose
         guestTo = pose
         guestMove = 1
+        guestPath = [RoomGuestWaypoint(x: pose.x, z: pose.z)]
         draggingStrip = false
         guestShelvedForFold = false
     }
@@ -161,12 +163,9 @@ public struct RoomInComputerGameplay: Equatable, Sendable {
 
     public var guestDisplay: RoomGuestPose {
         if guestMove >= 1 { return guestTo }
-        let t = guestMove * guestMove * (3 - 2 * guestMove)
-        return RoomGuestPose(
-            x: guestFrom.x + (guestTo.x - guestFrom.x) * t,
-            z: guestFrom.z + (guestTo.z - guestFrom.z) * t,
-            activity: guestTo.activity
-        )
+        let eased = guestMove * guestMove * (3 - 2 * guestMove)
+        let sample = RoomGuestRouter.point(along: guestPath, progress: eased)
+        return RoomGuestPose(x: sample.x, z: sample.z, activity: guestTo.activity)
     }
 
     public var lightForTime: Double { Self.clamp(roomTime) }
@@ -193,6 +192,7 @@ public struct RoomInComputerGameplay: Equatable, Sendable {
         guestFrom = home
         guestTo = home
         guestGoal = .morning
+        guestPath = [RoomGuestWaypoint(x: home.x, z: home.z)]
     }
 
     private mutating func resumeGuestAfterFold() {
@@ -212,9 +212,14 @@ public struct RoomInComputerGameplay: Equatable, Sendable {
         guestTo = Self.pose(for: next)
         let alreadyThere =
             guestGoal == guestFrom.activity && guestFrom.x == guestTo.x && guestFrom.z == guestTo.z
-        guestMove = alreadyThere ? 1 : 0
-        if guestMove == 0, guestFrom.x == guestTo.x, guestFrom.z == guestTo.z {
+        if alreadyThere || (guestFrom.x == guestTo.x && guestFrom.z == guestTo.z) {
+            guestPath = [RoomGuestWaypoint(x: guestTo.x, z: guestTo.z)]
             guestMove = 1
+            return
         }
+        guestPath = RoomGuestRouter.path(
+            from: RoomGuestWaypoint(x: guestFrom.x, z: guestFrom.z),
+            to: RoomGuestWaypoint(x: guestTo.x, z: guestTo.z))
+        guestMove = 0
     }
 }

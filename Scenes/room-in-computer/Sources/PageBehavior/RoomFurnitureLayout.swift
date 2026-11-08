@@ -48,4 +48,6 @@ public enum RoomFurnitureLayout {
             || desk.expanded(by: margin).contains(x: x, z: z)
             || chair.expanded(by: margin).contains(x: x, z: z)
     }
+
+    public static var furniturePieces: [RoomAxisBounds] { [bed, desk, chair] }
 }
