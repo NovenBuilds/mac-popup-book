@@ -1,5 +1,7 @@
-# 独立场景模板
+# 口袋小镇
 
-先实现 Sources/PageBehavior 的纯行为与测试，再实现 PageWorker 的画面适配。名称、文案、素材、声音和存档由本场景管理。仅测试样页保留 testOnly=true；正式场景应删除该属性，禁止启用故障注入。
+车站、钟楼、桥和街屋随书页分层展开。完全展开后，点钟楼前方的小道岔切换河岸线和钟楼线，再点左侧车站发车。一圈结束后可以再次发车。行驶中的列车保持本趟线路，低开合时回到起点。
 
-在仓库根目录执行 `python3 scripts/page.py check pocket-town` 或 `python3 scripts/page.py preview pocket-town`。不要修改根包注册代码或发布清单；集成者在验收后更新发布清单。
+在仓库根目录运行 `python3 scripts/page.py preview pocket-town` 打开独立预览。预览以窗口下方的展开滑块模拟开合。用 `python3 scripts/page.py check pocket-town` 检查场景，用 `python3 scripts/page.py build pocket-town` 只打包预览。
+
+首版交付列车玩法与分层展开。音效、街景细节和物理开合体验留待后续验收。整书是否启用本页由发布清单控制。

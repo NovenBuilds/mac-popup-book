@@ -26,8 +26,9 @@ private final class TrackSegment {
 
     func update(_ amount: Double) {
         let amount = max(0.001, min(1, amount))
-        piece.scale.z = amount
-        piece.position.z = length * amount / 2
+        let extent = length * amount
+        piece.scale.z = extent
+        piece.position.z = extent / 2
     }
 }
 
