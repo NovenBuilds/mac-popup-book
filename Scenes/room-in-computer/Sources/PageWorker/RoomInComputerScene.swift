@@ -19,17 +19,18 @@ final class RoomInComputerScene {
     private var deskFold = SCNNode()
     private var chairFold = SCNNode()
     private var lampFold = SCNNode()
-    private var guestNode = SCNNode()
+    private let guestAnchor = SCNNode()
     private var windowGlow = SCNNode()
     private var lampLight = SCNNode()
     private var ambientNode = SCNNode()
     private var keyLight = SCNNode()
 
-    init() throws {
+    init(guestAppearance: SCNNode) throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw PageError.missingResources }
         renderer = SCNRenderer(device: device, options: nil)
         renderer.scene = SCNScene()
         renderer.autoenablesDefaultLighting = false
+        guestAnchor.addChildNode(guestAppearance)
         buildScene()
     }
 
@@ -130,8 +131,7 @@ final class RoomInComputerScene {
         scene.rootNode.addChildNode(chairFold)
         lampFold = buildLamp()
         scene.rootNode.addChildNode(lampFold)
-        guestNode = buildGuest()
-        scene.rootNode.addChildNode(guestNode)
+        scene.rootNode.addChildNode(guestAnchor)
         buildTimeStrip(on: scene)
         buildCameraAndLights(on: scene)
     }
@@ -220,17 +220,6 @@ final class RoomInComputerScene {
         return pivot
     }
 
-    private func buildGuest() -> SCNNode {
-        let root = SCNNode()
-        let body = box(width: 0.08, height: 0.18, depth: 0.05, color: color(0.58, 0.62, 0.7))
-        body.position = SCNVector3(0, 0.1, 0)
-        root.addChildNode(body)
-        let head = box(width: 0.07, height: 0.07, depth: 0.05, color: color(0.9, 0.82, 0.72))
-        head.position = SCNVector3(0, 0.24, 0)
-        root.addChildNode(head)
-        return root
-    }
-
     private func buildTimeStrip(on scene: SCNScene) {
         let stripRoot = SCNNode()
         stripRoot.position = SCNVector3(0, 0.02, 0.72)
@@ -295,9 +284,9 @@ final class RoomInComputerScene {
         lampFold.isHidden = folding.lamp < 0.05
 
         let guest = gameplay.guestDisplay
-        guestNode.position = SCNVector3(guest.x, 0, guest.z)
-        guestNode.eulerAngles.y = guestHeading(guest.activity)
-        guestNode.isHidden = folding.bed < 0.2
+        guestAnchor.position = SCNVector3(guest.x, 0, guest.z)
+        guestAnchor.eulerAngles.y = guestHeading(guest.activity)
+        guestAnchor.isHidden = folding.bed < 0.2
 
         applyLighting(time: gameplay.lightForTime, folding: folding)
     }

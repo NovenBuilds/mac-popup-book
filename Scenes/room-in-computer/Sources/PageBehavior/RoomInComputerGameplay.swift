@@ -101,14 +101,7 @@ public struct RoomInComputerGameplay: Equatable, Sendable {
     }
 
     public static func pose(for phase: RoomTimePhase) -> RoomGuestPose {
-        switch phase {
-        case .morning:
-            return RoomGuestPose(x: -0.42, z: -0.22, activity: .morning)
-        case .afternoon:
-            return RoomGuestPose(x: 0.38, z: 0.02, activity: .afternoon)
-        case .evening:
-            return RoomGuestPose(x: 0.12, z: 0.32, activity: .evening)
-        }
+        RoomFurnitureLayout.pose(for: phase)
     }
 
     public mutating func handleStrip(_ target: RoomStripTarget) {

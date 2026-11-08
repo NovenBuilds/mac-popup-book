@@ -13,7 +13,8 @@ import PopupBookCore
     private var restoreNotice: String?
 
     init() throws {
-        scene = try RoomInComputerScene()
+        let guest = RoomGuestAppearance.make()
+        scene = try RoomInComputerScene(guestAppearance: guest.root)
     }
 
     func prepare(_ startup: PageStartup) throws {
