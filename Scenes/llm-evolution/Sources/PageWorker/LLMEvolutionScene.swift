@@ -51,7 +51,7 @@ final class LLMEvolutionScene {
     private var boothRoots: [LLMEvolutionBooth: SCNNode] = [:]
     private var exampleChips: [SCNNode] = []
     private var bridgeNodes: [SCNNode] = []
-    private var sourceHit = SCNNode()
+    private var sourcePlaque = SCNNode()
     private var deskFold = SCNNode()
     private var shelfFold = SCNNode()
 
@@ -68,12 +68,16 @@ final class LLMEvolutionScene {
     func pickTarget(x: Double, y: Double) -> LLMEvolutionTapTarget? {
         let point = CGPoint(x: x * viewport.width, y: y * viewport.height)
         let options: [SCNHitTestOption: Any] = [
-            .searchMode: SCNHitTestSearchMode.closest.rawValue,
-            .boundingBoxOnly: true,
+            .searchMode: SCNHitTestSearchMode.closest.rawValue
         ]
-        guard let hit = renderer.hitTest(point, options: options).first else { return nil }
-        let name = hit.node.name ?? hit.node.parent?.name ?? ""
-        return LLMEvolutionLayout.parseHit(name)
+        var node = renderer.hitTest(point, options: options).first?.node
+        while let current = node {
+            if let name = current.name, let target = LLMEvolutionLayout.parseHit(name) {
+                return target
+            }
+            node = current.parent
+        }
+        return nil
     }
 
     func render(
@@ -175,6 +179,7 @@ final class LLMEvolutionScene {
         for booth in LLMEvolutionBooth.allCases {
             let anchor = LLMEvolutionLayout.boothAnchor(booth)
             let root = SCNNode()
+            root.name = LLMEvolutionLayout.HitNames.booth(booth)
             root.position = SCNVector3(anchor.x, 0, anchor.z)
             let pedestal = box(width: 0.26, height: 0.04, depth: 0.2, color: color(0.55, 0.58, 0.62))
             pedestal.position.y = 0.02
@@ -183,13 +188,6 @@ final class LLMEvolutionScene {
             let module = boothGeometry(booth)
             module.position.y = 0.08
             root.addChildNode(module)
-
-            let hitDepth: Double = booth == .researchBranch ? 0.42 : 0.34
-            let hit = box(width: 0.38, height: 0.34, depth: hitDepth, color: .clear)
-            hit.name = LLMEvolutionLayout.HitNames.booth(booth)
-            hit.opacity = 0.001
-            hit.position.y = 0.16
-            root.addChildNode(hit)
 
             boothRoots[booth] = root
             scene.rootNode.addChildNode(root)
@@ -260,13 +258,8 @@ final class LLMEvolutionScene {
     private func buildSourcePlaque(in scene: SCNScene) {
         let plaque = box(width: 0.32, height: 0.06, depth: 0.18, color: color(0.62, 0.56, 0.48))
         plaque.position = SCNVector3(1.38, 0.06, -0.72)
+        sourcePlaque = plaque
         scene.rootNode.addChildNode(plaque)
-        sourceHit = box(width: 0.4, height: 0.2, depth: 0.26, color: .clear)
-        sourceHit.name = LLMEvolutionLayout.HitNames.source
-        sourceHit.opacity = 0.001
-        sourceHit.position = plaque.position
-        sourceHit.position.y = 0.14
-        scene.rootNode.addChildNode(sourceHit)
     }
 
     private func buildCameraAndLights() {
@@ -336,7 +329,7 @@ final class LLMEvolutionScene {
             node.opacity = CGFloat(folding.bridges)
         }
 
-        sourceHit.isHidden = folding.booths < 0.4
+        sourcePlaque.name = folding.booths >= 0.4 ? LLMEvolutionLayout.HitNames.source : nil
     }
 
     private func setFold(_ node: SCNNode, amount: Double) {
