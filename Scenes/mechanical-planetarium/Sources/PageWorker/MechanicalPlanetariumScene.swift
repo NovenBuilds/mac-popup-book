@@ -20,7 +20,11 @@ final class MechanicalPlanetariumScene {
     private var moonPivot = SCNNode()
     private var moonSphere = SCNNode()
     private var starNodes: [SCNNode] = []
+    private var skyCard = SCNNode()
     private var sunLight = SCNNode()
+
+    private static let externalBackground = (red: 0.86, green: 0.89, blue: 0.93)
+    private static let skyCardColor = (red: 0.06, green: 0.08, blue: 0.18)
 
     init() throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw PageError.missingResources }
@@ -84,7 +88,9 @@ final class MechanicalPlanetariumScene {
         pass.colorAttachments[0].resolveTexture = texture
         pass.colorAttachments[0].loadAction = .clear
         pass.colorAttachments[0].storeAction = .multisampleResolve
-        pass.colorAttachments[0].clearColor = MTLClearColor(red: 0.08, green: 0.1, blue: 0.2, alpha: 1)
+        let backdrop = Self.externalBackground
+        pass.colorAttachments[0].clearColor = MTLClearColor(
+            red: backdrop.red, green: backdrop.green, blue: backdrop.blue, alpha: 1)
         pass.depthAttachment.texture = depthTarget
         pass.depthAttachment.loadAction = .clear
         pass.depthAttachment.storeAction = .dontCare
@@ -99,8 +105,10 @@ final class MechanicalPlanetariumScene {
 
     private func buildScene() {
         guard let scene = renderer.scene else { return }
-        scene.background.contents = color(0.06, 0.08, 0.18)
+        let backdrop = Self.externalBackground
+        scene.background.contents = color(backdrop.red, backdrop.green, backdrop.blue)
 
+        buildSkyCard(into: scene)
         buildStars(into: scene)
         buildBase(into: scene)
         buildBrackets(into: scene)
@@ -109,6 +117,14 @@ final class MechanicalPlanetariumScene {
         buildCrank(into: scene)
         buildControls(into: scene)
         buildCameraAndLights(into: scene)
+    }
+
+    private func buildSkyCard(into scene: SCNScene) {
+        let tint = Self.skyCardColor
+        skyCard = box(
+            width: 3.55, height: 1.5, depth: 0.02, color: color(tint.red, tint.green, tint.blue))
+        skyCard.position = SCNVector3(0, 0.44, -0.62)
+        scene.rootNode.addChildNode(skyCard)
     }
 
     private func buildStars(into scene: SCNScene) {
@@ -295,6 +311,9 @@ final class MechanicalPlanetariumScene {
             }
             _ = amount
         }
+
+        setFold(skyCard, amount: folding.backdrop)
+        skyCard.isHidden = folding.backdrop < 0.04
 
         for (index, star) in starNodes.enumerated() {
             let twinkle = 0.35 + 0.25 * sin(mechanism.turns * 4 + Double(index))
