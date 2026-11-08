@@ -58,4 +58,26 @@ final class RoomInComputerSaveTests: XCTestCase {
         XCTAssertTrue(result.canSave)
         XCTAssertNil(result.notice)
     }
+
+    func testMissingMainBadBackupDisablesSave() {
+        let result = RoomInComputerSave.restore(state: nil, backup: Data("broken".utf8))
+        XCTAssertFalse(result.canSave)
+        XCTAssertEqual(result.notice, .saveProtected)
+        XCTAssertNil(RoomInComputerSave.checkpoint(from: result.gameplay, canSave: result.canSave))
+    }
+
+    func testMissingMainFutureBackupDisablesSave() {
+        let futureBackup = Data("{\"version\":2,\"roomTime\":0.6}".utf8)
+        let result = RoomInComputerSave.restore(state: nil, backup: futureBackup)
+        XCTAssertFalse(result.canSave)
+        XCTAssertEqual(result.notice, .saveProtected)
+        XCTAssertNil(RoomInComputerSave.pausePayload(from: result.gameplay, canSave: result.canSave))
+    }
+
+    func testMissingBothAllowsNewSave() {
+        let result = RoomInComputerSave.restore(state: nil, backup: nil)
+        XCTAssertTrue(result.canSave)
+        XCTAssertNil(result.notice)
+        XCTAssertNotNil(RoomInComputerSave.checkpoint(from: result.gameplay, canSave: result.canSave))
+    }
 }

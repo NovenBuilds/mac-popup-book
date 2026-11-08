@@ -22,11 +22,17 @@ public struct RoomInComputerRestoreResult: Equatable, Sendable {
 public enum RoomInComputerSave {
     public static func restore(state: Data?, backup: Data?) -> RoomInComputerRestoreResult {
         guard let state else {
-            if let backup, let snapshot = try? RoomInComputerSnapshot.decoded(backup) {
+            guard let backup else {
+                return RoomInComputerRestoreResult(gameplay: RoomInComputerGameplay(), canSave: true)
+            }
+            do {
+                let snapshot = try RoomInComputerSnapshot.decoded(backup)
                 return RoomInComputerRestoreResult(
                     gameplay: RoomInComputerGameplay(restoredTime: snapshot.roomTime), canSave: true)
+            } catch {
+                return RoomInComputerRestoreResult(
+                    gameplay: RoomInComputerGameplay(), canSave: false, notice: .saveProtected)
             }
-            return RoomInComputerRestoreResult(gameplay: RoomInComputerGameplay(), canSave: true)
         }
         do {
             let snapshot = try RoomInComputerSnapshot.decoded(state)
