@@ -75,7 +75,7 @@ final class UnderwaterTheaterScene {
         pass.colorAttachments[0].resolveTexture = texture
         pass.colorAttachments[0].loadAction = .clear
         pass.colorAttachments[0].storeAction = .multisampleResolve
-        pass.colorAttachments[0].clearColor = MTLClearColor(red: 0.1, green: 0.28, blue: 0.42, alpha: 1)
+        pass.colorAttachments[0].clearColor = MTLClearColor(red: 0.74, green: 0.9, blue: 0.95, alpha: 1)
         pass.depthAttachment.texture = depthTarget
         pass.depthAttachment.loadAction = .clear
         pass.depthAttachment.storeAction = .dontCare
@@ -90,7 +90,7 @@ final class UnderwaterTheaterScene {
 
     private func buildScene() {
         guard let scene = renderer.scene else { return }
-        scene.background.contents = NSColor(calibratedRed: 0.12, green: 0.3, blue: 0.46, alpha: 1)
+        scene.background.contents = NSColor(calibratedRed: 0.76, green: 0.91, blue: 0.95, alpha: 1)
 
         buildSeabed(into: scene)
         buildCoralArch(into: scene)
