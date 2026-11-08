@@ -1,4 +1,5 @@
 import Foundation
+import PopupBookCore
 
 public enum RoomTimePhase: String, Equatable, Sendable {
     case morning
@@ -33,6 +34,26 @@ public struct RoomInComputerSnapshot: Codable, Equatable, Sendable {
     public init(roomTime: Double) {
         version = Self.formatVersion
         self.roomTime = RoomInComputerGameplay.clamp(roomTime)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        version = try values.decode(Int.self, forKey: .version)
+        guard version == Self.formatVersion else {
+            throw StateRestoreError.unsupportedVersion(version)
+        }
+        let raw = try values.decode(Double.self, forKey: .roomTime)
+        guard raw.isFinite else { throw StateRestoreError.invalidState }
+        roomTime = RoomInComputerGameplay.clamp(raw)
+    }
+
+    public static func decoded(_ data: Data) throws -> Self {
+        struct VersionProbe: Decodable { let version: Int }
+        let version = try JSONDecoder().decode(VersionProbe.self, from: data).version
+        guard version == formatVersion else { throw StateRestoreError.unsupportedVersion(version) }
+        let snapshot = try JSONDecoder().decode(Self.self, from: data)
+        guard snapshot.roomTime.isFinite else { throw StateRestoreError.invalidState }
+        return snapshot
     }
 }
 

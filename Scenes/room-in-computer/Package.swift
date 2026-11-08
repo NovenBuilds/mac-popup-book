@@ -6,12 +6,18 @@ let package = Package(
     products: [.executable(name: "StandaloneWorker", targets: ["PageWorker"])],
     dependencies: [.package(name: "MacPopupBook", path: "../..")],
     targets: [
-        .target(name: "PageBehavior"),
+        .target(
+            name: "PageBehavior",
+            dependencies: [.product(name: "PopupBookCore", package: "MacPopupBook")]),
         .executableTarget(
             name: "PageWorker",
             dependencies: [
                 "PageBehavior", .product(name: "PopupBookCore", package: "MacPopupBook"),
                 .product(name: "PageWorkerKit", package: "MacPopupBook"),
             ]),
-        .testTarget(name: "PageTests", dependencies: ["PageBehavior"]),
+        .testTarget(
+            name: "PageTests",
+            dependencies: [
+                "PageBehavior", .product(name: "PopupBookCore", package: "MacPopupBook"),
+            ]),
     ], swiftLanguageVersions: [.v5])

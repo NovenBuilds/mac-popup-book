@@ -9,6 +9,8 @@ import PopupBookCore
     private var gameplay = RoomInComputerGameplay()
     private var context = WorldContext(progress: 0, clock: 0, deltaTime: 0, stableDuration: 0)
     private var stripActive = false
+    private var canSave = true
+    private var restoreNotice: String?
 
     init() throws {
         scene = try RoomInComputerScene()
@@ -17,11 +19,10 @@ import PopupBookCore
     func prepare(_ startup: PageStartup) throws {
         scene.setViewport(CGSize(width: startup.width, height: startup.height))
         cancelInteraction()
-        if let data = startup.state ?? startup.backup,
-            let snapshot = try? JSONDecoder().decode(RoomInComputerSnapshot.self, from: data)
-        {
-            gameplay = RoomInComputerGameplay(restoredTime: snapshot.roomTime)
-        }
+        let restored = RoomInComputerSave.restore(state: startup.state, backup: startup.backup)
+        gameplay = restored.gameplay
+        canSave = restored.canSave
+        restoreNotice = restored.notice.map { noticeText($0) }
     }
 
     func handle(_ input: PageInput) {
@@ -61,7 +62,10 @@ import PopupBookCore
         let zh = isChinese
         return PagePresentation(
             caption: gameplay.caption(zh: zh),
-            accessibility: message("住在电脑里的小屋", "Room in the Computer"))
+            accessibility: message("住在电脑里的小屋", "Room in the Computer"),
+            checkpoint: RoomInComputerSave.checkpoint(from: gameplay, canSave: canSave),
+            canSave: canSave,
+            notice: restoreNotice)
     }
 
     func render(into texture: MTLTexture, command: MTLCommandBuffer, context: WorldContext) throws {
@@ -74,17 +78,26 @@ import PopupBookCore
 
     func pause() -> Data? {
         cancelInteraction()
-        return try? JSONEncoder().encode(gameplay.snapshot())
+        return RoomInComputerSave.pausePayload(from: gameplay, canSave: canSave)
     }
 
     func finish() -> Data? {
         cancelInteraction()
-        return try? JSONEncoder().encode(gameplay.snapshot())
+        return RoomInComputerSave.pausePayload(from: gameplay, canSave: canSave)
     }
 
     private func cancelInteraction() {
         stripActive = false
         gameplay.cancelPointer()
+    }
+
+    private func noticeText(_ key: RoomSaveNoticeKey) -> String {
+        switch key {
+        case .backupRestored:
+            return message("已从备份恢复房间时光。", "Room time restored from backup.")
+        case .saveProtected:
+            return message("原存档已保留，本次仍可拨动时光。", "Your save is safe. You can still move time.")
+        }
     }
 
     private var isChinese: Bool {

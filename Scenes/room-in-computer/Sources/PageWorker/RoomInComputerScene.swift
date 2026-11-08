@@ -4,6 +4,9 @@ import PopupBookCore
 import SceneKit
 
 final class RoomInComputerScene {
+    private static let stripWidth = 1.04
+    private static let stripHalfWidth = stripWidth / 2
+
     private let renderer: SCNRenderer
     private var colorTarget: MTLTexture?
     private var depthTarget: MTLTexture?
@@ -42,8 +45,9 @@ final class RoomInComputerScene {
         let name = hit.node.name ?? hit.node.parent?.name ?? ""
         switch name {
         case "hit-strip-drag":
-            let localX = max(0, min(1, Double(hit.localCoordinates.x / 0.52 + 0.5)))
-            return .dragX(localX)
+            let localX = Double(hit.localCoordinates.x)
+            let mapped = (localX + Self.stripHalfWidth) / Self.stripWidth
+            return .dragX(max(0, min(1, mapped)))
         case "hit-dock-morning":
             return .dockMorning
         case "hit-dock-afternoon":
@@ -226,7 +230,7 @@ final class RoomInComputerScene {
             let hit = box(width: 0.16, height: 0.12, depth: 0.16, color: .clear)
             hit.name = name
             hit.opacity = 0.001
-            hit.position = SCNVector3(x, 0.04, 0)
+            hit.position = SCNVector3(0, 0.04, 0)
             tick.addChildNode(hit)
             stripRoot.addChildNode(tick)
             _ = label
@@ -348,7 +352,7 @@ final class RoomInComputerScene {
         if axisX {
             panel.position = SCNVector3(0, 0, -anchorZ + height / 2)
         } else {
-            panel.position = SCNVector3(0, height / 2, -anchorZ)
+            panel.position = SCNVector3(0, height / 2, 0)
         }
         pivot.addChildNode(panel)
         return pivot
