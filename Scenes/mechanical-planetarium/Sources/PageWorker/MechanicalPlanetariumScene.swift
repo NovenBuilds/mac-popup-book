@@ -13,7 +13,6 @@ final class MechanicalPlanetariumScene {
     private var orbitFolds: [SCNNode] = []
     private var bodyFolds: [SCNNode] = []
     private var crankPivot = SCNNode()
-    private var crankHandle = SCNNode()
     private var sunNode = SCNNode()
     private var earthPivot = SCNNode()
     private var earthSphere = SCNNode()
@@ -202,7 +201,7 @@ final class MechanicalPlanetariumScene {
         moon.firstMaterial?.lightingModel = .physicallyBased
         moonSphere = SCNNode(geometry: moon)
         moonPivot.addChildNode(moonSphere)
-        bodyFolds.append(moonPivot)
+        bodyFolds.append(moonSphere)
     }
 
     private func buildCrank(into scene: SCNScene) {
@@ -213,21 +212,20 @@ final class MechanicalPlanetariumScene {
         axleNode.eulerAngles.z = .pi / 2
         crankPivot.addChildNode(axleNode)
 
-        let rod = box(width: 0.18, height: 0.02, depth: 0.02, color: color(0.72, 0.56, 0.28))
-        rod.position = SCNVector3(0.09, 0, 0)
-        crankHandle = rod
+        let rod = box(width: 0.02, height: 0.18, depth: 0.02, color: color(0.72, 0.56, 0.28))
+        rod.position = SCNVector3(0.065, 0.09, 0)
         crankPivot.addChildNode(rod)
 
         let knobGeometry = SCNSphere(radius: 0.04)
         knobGeometry.firstMaterial?.diffuse.contents = color(0.78, 0.6, 0.3)
         let knob = SCNNode(geometry: knobGeometry)
-        knob.position = SCNVector3(0.18, 0, 0)
+        knob.position = SCNVector3(0.025, 0.09, 0)
         rod.addChildNode(knob)
 
-        let hit = box(width: 0.5, height: 0.22, depth: 0.28, color: .clear)
+        let hit = box(width: 0.32, height: 0.44, depth: 0.44, color: .clear)
         hit.opacity = 0.001
         hit.name = "hit-crank"
-        hit.position = SCNVector3(0.08, 0.05, 0)
+        hit.position = SCNVector3(0.065, 0, 0)
         crankPivot.addChildNode(hit)
         bodyFolds.append(crankPivot)
         scene.rootNode.addChildNode(crankPivot)
@@ -368,9 +366,7 @@ final class MechanicalPlanetariumScene {
         let torus = SCNTorus(ringRadius: radius, pipeRadius: 0.004)
         torus.firstMaterial?.diffuse.contents = tint
         torus.firstMaterial?.metalness.contents = 0.75
-        let node = SCNNode(geometry: torus)
-        node.eulerAngles.x = .pi / 2
-        return node
+        return SCNNode(geometry: torus)
     }
 
     private func box(width: Double, height: Double, depth: Double, color: NSColor) -> SCNNode {
