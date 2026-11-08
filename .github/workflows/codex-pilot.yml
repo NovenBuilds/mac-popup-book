@@ -37,11 +37,14 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
             jq -e --arg head "$HEAD_SHA" --arg base "$BASE_SHA" '
               .state == "open" and (.draft | not) and
-              .head.sha == $head and .base.sha == $base and .changed_files == 1
+              .head.sha == $head and .base.sha == $base and .changed_files == 2
             ' >/dev/null
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" |
-            jq -e 'length == 1 and .[0].status == "modified" and
-              .[0].filename == "docs/engineering/SCENE_WORKFLOW.md"' >/dev/null
+            jq -e '
+              all(.[]; .status == "modified") and
+              (map(.filename) | sort) ==
+                [".github/workflows/codex-pilot.yml", "docs/engineering/SCENE_WORKFLOW.md"]
+            ' >/dev/null
           # 确认待审提交包含集成分支当前基线。
           gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" |
             jq -e --arg base "$BASE_SHA" '.merge_base_commit.sha == $base' >/dev/null
@@ -79,10 +82,15 @@ jobs:
                 add | map(select(
                   .user.id == 199175422 and
                   .performed_via_github_app.slug == "chatgpt-codex-connector" and
-                  (.body | startswith("Codex Review: Didn\u0027t find any major issues.")) and
-                  ([.body | capture("(?m)^\\*\\*Reviewed commit:\\*\\* `(?<sha>[a-f0-9]{10,40})`[ \\t]*\\r?$").sha |
-                    . as $prefix | $sha | startswith($prefix)] == [true])
-                )) | last | .html_url // empty
+                  (.body | startswith("<!-- codex-pull-request-review-summary -->"))
+                )) | last | select(. != null) |
+                . as $comment |
+                ($comment.body |
+                  capture("(?m)^<!-- codex-review-state:v1 (?<state>[^\\r\\n]+) -->[ \\t]*\\r?$").state |
+                  fromjson | .code_review) |
+                select(.commit_sha == $sha and .status == "completed" and
+                  .has_any_findings == false and .has_unresolved_findings == false) |
+                $comment.html_url
               ')
             if [[ -n "$clean_review" ]]; then
               echo "Codex 审查结论：$clean_review"
