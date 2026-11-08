@@ -1,0 +1,12 @@
+{
+  "id": "underwater-theater",
+  "order": 0,
+  "names": {
+    "en": "Underwater Theater",
+    "zh-Hans": "海底剧场"
+  },
+  "contractVersion": 1,
+  "service": "local.ssr.forestbook.page.underwater-theater",
+  "product": "StandaloneWorker",
+  "audio": []
+}
