@@ -11,6 +11,8 @@ import PopupBookCore
     private var stripActive = false
     private var canSave = true
     private var restoreNotice: String?
+    private var pendingStripSound = false
+    private var lastStripSound = -1.0
 
     init() throws {
         scene = try RoomInComputerScene(guestAppearance: RoomGuestAppearance())
@@ -26,11 +28,23 @@ import PopupBookCore
     }
 
     func handle(_ input: PageInput) {
+        let phaseBefore = RoomInComputerGameplay.phase(for: gameplay.roomTime)
+        let canUseStrip =
+            RoomInComputerFolding(progress: context.progress).bed > RoomInComputerGameplay.interactionOpenBed
+        defer {
+            if RoomInComputerGameplay.phase(for: gameplay.roomTime) != phaseBefore {
+                pendingStripSound = true
+            }
+        }
         switch input {
         case .cancel:
             cancelInteraction()
         case .pointer(let event):
             guard event.valid else { return }
+            if !canUseStrip {
+                cancelInteraction()
+                return
+            }
             switch event.kind {
             case .down:
                 if let target = scene.pickStrip(x: event.x, y: event.y) {
@@ -47,8 +61,14 @@ import PopupBookCore
                     gameplay.endStripDrag()
                 }
             }
-        case .action:
-            break
+        case .action(let action):
+            guard canUseStrip else { return }
+            switch action {
+            case "room-dawn": gameplay.handleStrip(.dockMorning)
+            case "room-afternoon": gameplay.handleStrip(.dockAfternoon)
+            case "room-night": gameplay.handleStrip(.dockEvening)
+            default: return
+            }
         }
     }
 
@@ -57,9 +77,19 @@ import PopupBookCore
         let folding = RoomInComputerFolding(progress: context.progress)
         gameplay.advance(deltaTime: context.deltaTime, folding: folding)
         let zh = isChinese
+        let canUseStrip = folding.bed > RoomInComputerGameplay.interactionOpenBed
+        let shouldPlay = canUseStrip && pendingStripSound && context.clock - lastStripSound > 0.19
+        pendingStripSound = false
+        if shouldPlay { lastStripSound = context.clock }
         return PagePresentation(
             caption: gameplay.caption(zh: zh),
             accessibility: message("住在电脑里的小屋", "Room in the Computer"),
+            actions: [
+                PageAction("room-dawn", title: message("清晨", "Dawn"), enabled: canUseStrip),
+                PageAction("room-afternoon", title: message("午后", "Afternoon"), enabled: canUseStrip),
+                PageAction("room-night", title: message("夜晚", "Night"), enabled: canUseStrip),
+            ],
+            sounds: shouldPlay ? [PageSound("room.strip", .play)] : [],
             checkpoint: RoomInComputerSave.checkpoint(from: gameplay, canSave: canSave),
             canSave: canSave,
             notice: restoreNotice)
@@ -85,6 +115,7 @@ import PopupBookCore
 
     private func cancelInteraction() {
         stripActive = false
+        pendingStripSound = false
         gameplay.cancelPointer()
     }
 

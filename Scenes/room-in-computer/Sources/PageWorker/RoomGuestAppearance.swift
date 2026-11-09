@@ -11,6 +11,8 @@ final class RoomGuestAppearance {
     private let rightLeg = SCNNode()
     private let book = SCNNode()
     private var activityBlend: Double = 0
+    private(set) var seatBlend = 0.0
+    private var readingBlend = 0.0
 
     init() {
         let coat = tint(0.25, 0.53, 0.52)
@@ -48,7 +50,7 @@ final class RoomGuestAppearance {
                 to: leg, size: SCNVector3(0.035, 0.023, 0.052), at: SCNVector3(0, -0.105, 0.014), color: shoes
             )
         }
-        book.position = SCNVector3(0, 0.174, 0.075)
+        book.position = SCNVector3(0, 0.225, 0.073)
         for sign in [-1.0, 1.0] {
             let page = addCard(
                 to: book, size: SCNVector3(0.047, 0.065, 0.006),
@@ -65,8 +67,12 @@ final class RoomGuestAppearance {
         activityBlend += max(-travel, min(travel, targetBlend - activityBlend))
         let step = sin(walk * 6 * .pi) * 0.53 * (1 - activityBlend)
         let breath = sin(clock * 2.1) * 0.014
-        let read = activity == .afternoon ? activityBlend : 0
-        let rest = activity == .evening ? activityBlend : 0
+        let readTarget = activity == .afternoon && settled ? 1.0 : 0.0
+        let restTarget = activity == .evening && settled ? 1.0 : 0.0
+        readingBlend += max(-travel, min(travel, readTarget - readingBlend))
+        seatBlend += max(-travel, min(travel, restTarget - seatBlend))
+        let read = readingBlend
+        let rest = seatBlend
         let stretch = activity == .morning ? max(0, sin(clock * 1.3)) * activityBlend : 0
 
         leftLeg.eulerAngles.x = step - rest * 1.38
