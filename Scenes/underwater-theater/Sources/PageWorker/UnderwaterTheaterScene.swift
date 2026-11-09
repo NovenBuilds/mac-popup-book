@@ -257,9 +257,23 @@ final class UnderwaterTheaterScene {
         }
     }
 
+    // Sample the outline in scene coordinates before tessellation. The default curve
+    // tolerance is large compared with the thickness and size of these paper pieces.
+    private func appendPaperCurve(
+        _ path: NSBezierPath, to end: CGPoint, controlPoint1 a: CGPoint, controlPoint2 b: CGPoint
+    ) {
+        let start = path.currentPoint
+        for step in 1...20 {
+            let t = CGFloat(step) / 20
+            let u = 1 - t
+            let x = u * u * u * start.x + 3 * u * u * t * a.x + 3 * u * t * t * b.x + t * t * t * end.x
+            let y = u * u * u * start.y + 3 * u * u * t * a.y + 3 * u * t * t * b.y + t * t * t * end.y
+            path.line(to: CGPoint(x: x, y: y))
+        }
+    }
+
     private func paperCut(_ path: NSBezierPath, thickness: Double, tint: NSColor) -> SCNNode {
-        path.flatness = 0.001
-        let geometry = SCNShape(path: path.flattened, extrusionDepth: thickness)
+        let geometry = SCNShape(path: path, extrusionDepth: thickness)
         geometry.firstMaterial?.diffuse.contents = tint
         return SCNNode(geometry: geometry)
     }
@@ -337,7 +351,11 @@ final class UnderwaterTheaterScene {
         let caustic = SCNNode()
         caustic.light = SCNLight()
         caustic.light?.type = .directional
-        caustic.light?.intensity = 620
+        caustic.light?.intensity = 650
+        caustic.light?.castsShadow = true
+        caustic.light?.shadowMode = .deferred
+        caustic.light?.shadowRadius = 4
+        caustic.light?.shadowColor = color(0.16, 0.36, 0.40).withAlphaComponent(0.24)
         caustic.light?.color = color(0.78, 0.92, 0.98)
         caustic.eulerAngles = SCNVector3(-0.65, -0.35, 0)
         scene.rootNode.addChildNode(caustic)
