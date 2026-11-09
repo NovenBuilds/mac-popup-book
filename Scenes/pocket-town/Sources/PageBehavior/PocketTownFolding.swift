@@ -12,11 +12,11 @@ public struct PocketTownFolding: Equatable, Sendable {
         let progress = Self.clamp(progress)
         ground = Self.stage(progress, start: 0, end: 0.28)
         routes = Self.stage(progress, start: 0.04, end: 0.34)
-        houses = Self.stage(progress, start: 0.22, end: 0.66)
+        houses = Self.stage(progress, start: 0.16, end: 0.43)
         bridge = Self.stage(progress, start: 0.34, end: 0.74)
-        tower = Self.stage(progress, start: 0.46, end: 0.9)
+        tower = Self.stage(progress, start: 0.18, end: 0.47)
         stationCanopy = Self.stage(progress, start: 0.68, end: 1)
-        train = Self.stage(progress, start: PocketTownGameplay.foldedResetProgress, end: 0.42)
+        train = Self.stage(progress, start: PocketTownGameplay.foldedResetProgress, end: 0.50)
     }
 
     static func stage(_ progress: Double, start: Double, end: Double) -> Double {

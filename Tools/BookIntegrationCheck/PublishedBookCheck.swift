@@ -9,12 +9,15 @@ import PopupBookCore
         case action(String, sound: String?, feedback: [String])
         case feedback([String])
         case settle(Double)
+        case record(String, frames: Int)
     }
 
     private let steps: [Step]
     private var index = 0
     private var startedAt: Double?
     private var captureRequested = false
+    private var recordedFrames = 0
+    private var nextRecordAt = 0.0
     private var soundEvents: Set<String> = []
     var checkpoints: [String: Data] = [:]
 
@@ -34,27 +37,39 @@ import PopupBookCore
                 ]
             case "pocket-town":
                 plan += [
+                    .angle(0.52857, "station-72deg"),
                     .action("town-switch", sound: "town.switch", feedback: ["钟楼线", "Clock tower"]),
                     .action("town-depart", sound: "town.depart", feedback: ["正在走", "Train on"]),
+                    .record("clock-route-72deg", frames: 12),
+                    .angle(0.75, "clock-route-midway"),
                     .angle(0.04, "folded-during-trip"), .angle(1, "back-at-station"),
                     .feedback(["点击车站发车", "Tap the station"]),
                     .action("town-switch", sound: "town.switch", feedback: ["河岸线", "Riverside"]),
                     .action("town-depart", sound: "town.depart", feedback: ["正在走", "Train on"]),
+                    .record("river-route-107deg", frames: 12),
                 ]
             case "room-in-computer":
                 plan += [
+                    .angle(0.41429, "closing-64deg"), .angle(0.37143, "closing-61deg"),
+                    .settle(0.4), .record("room-held-61deg", frames: 6),
+                    .angle(0.41429, "reversing-64deg"), .angle(0.37143, "reversing-61deg"),
+                    .angle(1, "room-after-reversal"),
                     .action("room-night", sound: "room.strip", feedback: ["夜晚", "Evening"]),
                     .action("room-dawn", sound: "room.strip", feedback: ["清晨", "Morning"]),
                     .action("room-afternoon", sound: "room.strip", feedback: ["午后", "Afternoon"]),
                 ]
             case "underwater-theater":
                 plan += [
+                    .angle(0.50, "reef-half"), .settle(0.4), .record("reef-half", frames: 18),
+                    .angle(0.96, "reef-above-100deg"), .settle(0.4), .record("reef-open", frames: 18),
                     .action("current-west", sound: "sea.current", feedback: ["左侧海草", "by the seaweed"]),
                     .action("current-shell", sound: "sea.current", feedback: ["贝壳台旁", "beside the shell"]),
                     .angle(0.04, "folded-during-current"), .angle(1, "current-reopened"),
                 ]
             case "mechanical-planetarium":
                 plan += [
+                    .angle(0.50, "planet-half"), .settle(0.4), .record("planet-half", frames: 18),
+                    .angle(0.96, "planet-above-100deg"), .settle(0.4), .record("planet-open", frames: 18),
                     .action(
                         "observe-quarter", sound: "planet.detent",
                         feedback: ["已暂停，上弦", "Paused at First quarter"]),
@@ -63,11 +78,27 @@ import PopupBookCore
                 ]
             case "llm-evolution":
                 plan += [
-                    .action(
-                        "next-example", sound: "exhibit.paper", feedback: ["按要求改写", "Rewrite on request"]),
-                    .action(
-                        "next-booth", sound: "exhibit.paper", feedback: ["展台「注意力」", "Booth “Attention”"]),
+                    .action("show-replay", sound: "exhibit.paper", feedback: ["两种续写", "two endings"]),
+                    .settle(7), .angle(1, "act-1-prints"),
+                    .action("show-toggle", sound: "exhibit.paper", feedback: ["已暂停", "Show paused"]),
+                    .angle(0.44, "show-folded"), .angle(1, "show-resumed-position"),
+                    .feedback(["已暂停", "Show paused"]),
+                    .action("show-toggle", sound: "exhibit.paper", feedback: ["两种续写", "two endings"]),
+                    .action("show-next", sound: "exhibit.paper", feedback: ["更礼貌", "Polite cues"]),
+                    .settle(3), .angle(1, "act-2-keywords"),
                     .action("toggle-source", sound: "exhibit.paper", feedback: ["2017"]),
+                    .angle(1, "show-source-card"),
+                    .action("toggle-source", sound: "exhibit.paper", feedback: ["更礼貌", "Polite cues"]),
+                    .action("show-next", sound: "exhibit.paper", feedback: ["图文判断", "prints a judgment"]),
+                    .settle(1), .angle(1, "act-3-picture"),
+                    .settle(7), .settle(3), .angle(1, "show-gallery"),
+                    .feedback(["巡演结束", "The show has ended"]),
+                    .action("show-previous", sound: "exhibit.paper", feedback: ["更礼貌", "Polite cues"]),
+                    .action("show-replay", sound: "exhibit.paper", feedback: ["两种续写", "two endings"]),
+                    .settle(7), .settle(5), .feedback(["更礼貌", "Polite cues"]),
+                    .settle(5), .settle(5), .feedback(["图文判断", "prints a judgment"]),
+                    .settle(6), .settle(5), .feedback(["巡演结束", "The show has ended"]),
+                    .angle(1, "uninterrupted-gallery"),
                 ]
             default:
                 break
@@ -87,7 +118,7 @@ import PopupBookCore
         guard index < steps.count else {
             check.coordinator.stop()
             check.supervisor.shutdown()
-            print("正式清单后台验收通过：三态、快速收合、动作、声音事件和月相恢复。")
+            print("正式清单后台验收通过：开合、连续取帧、动作、声音事件和状态恢复。")
             exit(0)
         }
         let coordinator = check.coordinator!
@@ -149,6 +180,21 @@ import PopupBookCore
         case .settle(let duration):
             if startedAt == nil { startedAt = now }
             if now - (startedAt ?? now) >= duration { finishStep() }
+        case .record(let label, let frameCount):
+            if startedAt == nil {
+                startedAt = now
+                nextRecordAt = now
+            }
+            guard check.captureName == nil else { return }
+            if recordedFrames == frameCount {
+                finishStep()
+                return
+            }
+            guard now >= nextRecordAt else { return }
+            let suffix = String(format: "%03d", recordedFrames)
+            check.captureName = "\(state.current ?? "page")-\(label)-\(suffix)"
+            nextRecordAt = now + 1.0 / 8
+            recordedFrames += 1
         case .feedback(let feedback):
             if startedAt == nil { startedAt = now }
             guard feedback.contains(where: { state.output.caption.contains($0) }) else { return }
@@ -163,5 +209,6 @@ import PopupBookCore
         startedAt = nil
         inputWaitStart = nil
         captureRequested = false
+        recordedFrames = 0
     }
 }

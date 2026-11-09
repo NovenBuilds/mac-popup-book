@@ -23,45 +23,41 @@ public struct PocketTownPoint: Equatable, Sendable, Codable {
 
 /// Shared track geometry matching `PocketTownScene` route polylines.
 public enum PocketTownTracks {
-    public static let station = PocketTownPoint(-1.36, -0.14)
-    public static let switchCenter = PocketTownPoint(-0.14, 0.08)
+    public static let station = PocketTownPoint(-1.12, -0.52)
+    public static let switchCenter = PocketTownPoint(0.15, -0.52)
+    public static let stationWall = PocketTownPoint(-1.10, -0.84)
 
-    /// 河岸环线 — dark loop in the scene.
-    public static let riversideLoop: [PocketTownPoint] = [
-        PocketTownPoint(-1.48, -0.58), PocketTownPoint(-1.0, -0.9), PocketTownPoint(-0.34, -0.98),
-        PocketTownPoint(0.35, -0.9), PocketTownPoint(0.94, -0.63), PocketTownPoint(1.28, -0.16),
-        PocketTownPoint(1.08, 0.43), PocketTownPoint(0.5, 0.6), PocketTownPoint(-0.12, 0.37),
-        PocketTownPoint(-0.52, -0.12), PocketTownPoint(-1.0, -0.18), PocketTownPoint(-1.48, -0.58),
+    public static let approachSpine = [
+        station, PocketTownPoint(-0.45, -0.52), switchCenter,
     ]
 
-    /// 钟楼环线 — golden loop in the scene.
-    public static let clockLoop: [PocketTownPoint] = [
-        PocketTownPoint(-1.52, -0.38), PocketTownPoint(-1.18, 0.18), PocketTownPoint(-0.63, 0.48),
-        PocketTownPoint(-0.08, 0.74), PocketTownPoint(0.42, 0.75), PocketTownPoint(0.88, 0.52),
-        PocketTownPoint(1.14, 0.13), PocketTownPoint(0.88, -0.24), PocketTownPoint(0.42, -0.38),
-        PocketTownPoint(-0.1, -0.3), PocketTownPoint(-0.68, -0.13), PocketTownPoint(-1.52, -0.38),
+    public static let returnTrack = [
+        PocketTownPoint(1.50, 0.65), PocketTownPoint(1.23, 0.94),
+        PocketTownPoint(-1.28, 0.94), PocketTownPoint(-1.57, 0.64),
+        PocketTownPoint(-1.57, -0.23), PocketTownPoint(-1.45, -0.46),
+        PocketTownPoint(-1.30, -0.52), station,
     ]
 
-    public static let approachSpine: [PocketTownPoint] = [
-        station,
-        PocketTownPoint(-1.22, -0.32),
-        PocketTownPoint(-0.72, -0.18),
-        switchCenter,
-    ]
+    public static let riversideLoop =
+        [
+            switchCenter, PocketTownPoint(0.38, -0.79), PocketTownPoint(0.63, -0.94),
+            PocketTownPoint(1.18, -0.94), PocketTownPoint(1.50, -0.63),
+        ] + returnTrack
 
-    public static func loopEntry(_ route: PocketTownRoute) -> PocketTownPoint {
-        route == .riverside ? riversideLoop[0] : clockLoop[0]
-    }
+    public static let clockLoop =
+        [
+            switchCenter, PocketTownPoint(0.38, -0.28), PocketTownPoint(0.68, -0.08),
+            PocketTownPoint(1.23, -0.08), PocketTownPoint(1.50, 0.17),
+        ] + returnTrack
 
-    /// 道岔→环线起点、环线起点→车站；与 `fullPath` 两端缺段一致，供画面与采样共用。
-    public static func loopLinks(route: PocketTownRoute) -> [PocketTownPoint] {
-        let entry = loopEntry(route)
-        return [switchCenter, entry, station]
+    public static func loop(for route: PocketTownRoute) -> [PocketTownPoint] {
+        route == .riverside ? riversideLoop : clockLoop
     }
 
     public static func fullPath(route: PocketTownRoute) -> [PocketTownPoint] {
-        approachSpine + (route == .riverside ? riversideLoop : clockLoop) + [station]
+        approachSpine + loop(for: route).dropFirst()
     }
+
 }
 
 public enum PocketTownRoute: String, Codable, Equatable, Sendable {

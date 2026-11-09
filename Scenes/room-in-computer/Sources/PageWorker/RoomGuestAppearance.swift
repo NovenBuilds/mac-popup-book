@@ -60,20 +60,28 @@ final class RoomGuestAppearance {
         torso.addChildNode(book)
     }
 
-    func update(activity: RoomTimePhase, walk: Double, clock: Double, delta: Double) {
+    func update(activity: RoomTimePhase, walk: Double, clock: Double, delta: Double, entrance: Double? = nil)
+    {
         let settled = walk >= 1
         let targetBlend = settled ? 1.0 : 0.0
         let travel = max(0, min(0.05, delta)) * 7
         activityBlend += max(-travel, min(travel, targetBlend - activityBlend))
-        let step = sin(walk * 6 * .pi) * 0.53 * (1 - activityBlend)
-        let breath = sin(clock * 2.1) * 0.014
+        let pose = entrance.map { min(1, max(0, ($0 - 0.90) / 0.10)) }
+        let stride = entrance ?? walk
+        let step = sin(stride * 6 * .pi) * 0.53 * (entrance == nil ? 1 - activityBlend : 1 - (pose ?? 0))
+        let breath = entrance == nil ? sin(clock * 2.1) * 0.014 : 0
         let readTarget = activity == .afternoon && settled ? 1.0 : 0.0
         let restTarget = activity == .evening && settled ? 1.0 : 0.0
-        readingBlend += max(-travel, min(travel, readTarget - readingBlend))
-        seatBlend += max(-travel, min(travel, restTarget - seatBlend))
+        if let pose {
+            readingBlend = readTarget * pose
+            seatBlend = restTarget * pose
+        } else {
+            readingBlend += max(-travel, min(travel, readTarget - readingBlend))
+            seatBlend += max(-travel, min(travel, restTarget - seatBlend))
+        }
         let read = readingBlend
         let rest = seatBlend
-        let stretch = activity == .morning ? max(0, sin(clock * 1.3)) * activityBlend : 0
+        let stretch = entrance == nil && activity == .morning ? max(0, sin(clock * 1.3)) * activityBlend : 0
 
         leftLeg.eulerAngles.x = step - rest * 1.38
         rightLeg.eulerAngles.x = -step - rest * 1.38

@@ -37,6 +37,7 @@ public struct MechanicalPlanetariumGameplay: Equatable, Sendable {
     public var notice: MechanicalPlanetariumNotice?
     public var noticeUntil: Double
     public private(set) var canInteract: Bool
+    public private(set) var automaticDrive = false
 
     public static let dragTurnsPerUnit = 1.4
     public static let stepTurns = 0.08
@@ -157,8 +158,12 @@ public struct MechanicalPlanetariumGameplay: Equatable, Sendable {
     public mutating func advance(
         clock: Double, deltaTime: Double, folding: MechanicalPlanetariumFolding
     ) {
-        _ = deltaTime
         updateInteractionGate(folding: folding)
+        automaticDrive = folding.progress >= (automaticDrive ? 0.90 : 0.93)
+        if !canInteract { endCrankDrag() }
+        if automaticDrive && !isPaused && !draggingCrank && deltaTime.isFinite {
+            mechanism.turns += min(0.05, max(0, deltaTime)) / 18
+        }
         if clock >= noticeUntil { notice = nil }
     }
 
@@ -172,9 +177,10 @@ public struct MechanicalPlanetariumGameplay: Equatable, Sendable {
                 ? "已暂停，\(phase)定格。点恢复或下方控制再继续。"
                 : "Paused at \(phase). Resume or use the controls below to continue."
         }
-        return zh
-            ? "拖动曲柄或点按步进。当前\(phase)，运行中。"
-            : "Drag the crank or tap step controls. \(phase), running."
+        if automaticDrive && !draggingCrank {
+            return zh ? "日月自行运转 · \(phase)" : "Orrery running · \(phase)"
+        }
+        return zh ? "拖动曲柄，或继续展开。当前\(phase)。" : "Turn the crank or open wider. \(phase)."
     }
 
     public func disclaimer(zh: Bool) -> String {

@@ -30,7 +30,7 @@ import PopupBookCore
     func handle(_ input: PageInput) {
         let phaseBefore = RoomInComputerGameplay.phase(for: gameplay.roomTime)
         let canUseStrip =
-            RoomInComputerFolding(progress: context.progress).bed > RoomInComputerGameplay.interactionOpenBed
+            RoomInComputerFolding(progress: context.progress).canChangeTime
         defer {
             if RoomInComputerGameplay.phase(for: gameplay.roomTime) != phaseBefore {
                 pendingStripSound = true
@@ -77,13 +77,13 @@ import PopupBookCore
         let folding = RoomInComputerFolding(progress: context.progress)
         gameplay.advance(deltaTime: context.deltaTime, folding: folding)
         let zh = isChinese
-        let canUseStrip = folding.bed > RoomInComputerGameplay.interactionOpenBed
+        let canUseStrip = folding.canChangeTime
         let shouldPlay = canUseStrip && pendingStripSound && context.clock - lastStripSound > 0.19
         pendingStripSound = false
         if shouldPlay { lastStripSound = context.clock }
         return PagePresentation(
             caption: gameplay.caption(zh: zh),
-            accessibility: message("住在电脑里的小屋", "Room in the Computer"),
+            accessibility: message("窗边小屋", "Window Nook"),
             actions: [
                 PageAction("room-dawn", title: message("清晨", "Dawn"), enabled: canUseStrip),
                 PageAction("room-afternoon", title: message("午后", "Afternoon"), enabled: canUseStrip),

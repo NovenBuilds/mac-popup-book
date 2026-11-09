@@ -24,6 +24,7 @@ final class MechanicalPlanetariumScene {
     private let phaseLight = SCNNode()
     private var phaseBucket = -1
     private var crossbar = SCNNode()
+    private var gears: [SCNNode] = []
     private var controlButtons: [SCNNode] = []
     private var pauseMark = SCNNode()
     private var resumeMark = SCNNode()
@@ -123,6 +124,7 @@ final class MechanicalPlanetariumScene {
         buildCrank(into: scene)
         buildControls(into: scene)
         buildPhaseDial(into: scene)
+        buildDriveGears(into: scene)
         buildCameraAndLights(into: scene)
     }
 
@@ -176,21 +178,21 @@ final class MechanicalPlanetariumScene {
 
     private func buildOrbits(into scene: SCNScene) {
         let earthRing = orbitRing(
-            radius: MechanicalPlanetariumMechanism.earthOrbitRadius, tint: color(0.58, 0.44, 0.22))
+            radius: MechanicalPlanetariumMechanism.earthOrbitRadius, tint: color(0.82, 0.63, 0.31))
         earthRing.position = SCNVector3(0, 0.36, 0)
         orbitFolds.append(earthRing)
         scene.rootNode.addChildNode(earthRing)
 
         moonPivot.position = SCNVector3(0, 0.36, 0)
         let moonRing = orbitRing(
-            radius: MechanicalPlanetariumMechanism.moonOrbitRadius, tint: color(0.72, 0.56, 0.28))
+            radius: MechanicalPlanetariumMechanism.moonOrbitRadius, tint: color(0.91, 0.72, 0.39))
         moonPivot.addChildNode(moonRing)
         orbitFolds.append(moonPivot)
         scene.rootNode.addChildNode(moonPivot)
     }
 
     private func buildBodies(into scene: SCNScene) {
-        let sun = SCNSphere(radius: 0.09)
+        let sun = SCNSphere(radius: 0.12)
         sun.firstMaterial?.diffuse.contents = color(0.98, 0.82, 0.34)
         sun.firstMaterial?.emission.contents = color(0.95, 0.72, 0.2)
         sunNode = SCNNode(geometry: sun)
@@ -198,20 +200,85 @@ final class MechanicalPlanetariumScene {
         bodyFolds.append(sunNode)
         scene.rootNode.addChildNode(sunNode)
 
-        let earth = SCNSphere(radius: 0.055)
-        earth.firstMaterial?.diffuse.contents = color(0.28, 0.5, 0.72)
+        let earth = SCNSphere(radius: 0.078)
+        earth.firstMaterial?.diffuse.contents = enamelMap()
         earthSphere = SCNNode(geometry: earth)
         earthPivot.position = SCNVector3(0, 0.36, 0)
         earthPivot.addChildNode(earthSphere)
         bodyFolds.append(earthPivot)
         scene.rootNode.addChildNode(earthPivot)
 
-        let moon = SCNSphere(radius: 0.028)
+        let moon = SCNSphere(radius: 0.037)
         moon.firstMaterial?.diffuse.contents = color(0.78, 0.8, 0.84)
         moon.firstMaterial?.lightingModel = .physicallyBased
         moonSphere = SCNNode(geometry: moon)
         moonPivot.addChildNode(moonSphere)
         bodyFolds.append(moonSphere)
+    }
+
+    private func enamelMap() -> NSImage {
+        let size = NSSize(width: 384, height: 192)
+        let ocean = color(0.09, 0.31, 0.54)
+        let land = color(0.37, 0.68, 0.49)
+        let ice = color(0.76, 0.87, 0.86)
+        return NSImage(size: size, flipped: false) { _ in
+            ocean.setFill()
+            NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
+            let shapes: [[CGPoint]] = [
+                [(36, 137), (58, 157), (102, 148), (124, 130), (103, 113), (86, 118), (77, 98), (60, 106)].map
+                { CGPoint(x: $0.0, y: $0.1) },
+                [(91, 91), (114, 93), (133, 79), (126, 55), (113, 35), (101, 24), (99, 56)].map {
+                    CGPoint(x: $0.0, y: $0.1)
+                },
+                [
+                    (173, 127), (192, 147), (228, 138), (250, 150), (303, 141), (329, 120), (296, 107),
+                    (270, 112), (246, 94), (229, 117), (204, 116),
+                ].map { CGPoint(x: $0.0, y: $0.1) },
+                [(183, 108), (208, 112), (232, 89), (214, 66), (198, 49), (189, 66)].map {
+                    CGPoint(x: $0.0, y: $0.1)
+                },
+                [(279, 58), (310, 69), (334, 52), (323, 35), (286, 38)].map { CGPoint(x: $0.0, y: $0.1) },
+            ]
+            land.setFill()
+            for points in shapes {
+                let path = NSBezierPath()
+                path.move(to: points[0])
+                for point in points.dropFirst() { path.line(to: point) }
+                path.close()
+                path.fill()
+            }
+            ice.setFill()
+            NSBezierPath(rect: NSRect(x: 0, y: 181, width: 384, height: 11)).fill()
+            NSBezierPath(rect: NSRect(x: 0, y: 0, width: 384, height: 9)).fill()
+            return true
+        }
+    }
+
+    private func buildDriveGears(into scene: SCNScene) {
+        for (index, radius) in [0.17, 0.115].enumerated() {
+            let gear = SCNNode()
+            gear.position = SCNVector3(0.83 + Double(index) * 0.29, 0.20, 0.56)
+            let brass = color(0.81, 0.54, 0.25)
+            let ring = SCNNode(geometry: SCNTorus(ringRadius: radius * 0.77, pipeRadius: radius * 0.16))
+            ring.geometry?.firstMaterial?.diffuse.contents = brass
+            ring.eulerAngles.x = .pi / 2
+            gear.addChildNode(ring)
+            let teeth = index == 0 ? 18 : 12
+            for tooth in 0..<teeth {
+                let a = Double(tooth) / Double(teeth) * 2 * .pi
+                let block = box(width: radius * 0.27, height: radius * 0.23, depth: 0.031, color: brass)
+                block.position = SCNVector3(radius * 0.91 * cos(a), radius * 0.91 * sin(a), 0)
+                block.eulerAngles.z = CGFloat(a)
+                gear.addChildNode(block)
+            }
+            for spoke in 0..<3 {
+                let bar = box(width: 1.52 * radius, height: 0.015, depth: 0.024, color: brass)
+                bar.eulerAngles.z = CGFloat(Double(spoke) * .pi / 3)
+                gear.addChildNode(bar)
+            }
+            scene.rootNode.addChildNode(gear)
+            gears.append(gear)
+        }
     }
 
     private func buildCrank(into scene: SCNScene) {
@@ -222,7 +289,7 @@ final class MechanicalPlanetariumScene {
         axleNode.eulerAngles.z = .pi / 2
         crankPivot.addChildNode(axleNode)
 
-        let rod = box(width: 0.02, height: 0.18, depth: 0.02, color: color(0.72, 0.56, 0.28))
+        let rod = box(width: 0.02, height: 0.18, depth: 0.02, color: color(0.91, 0.72, 0.39))
         rod.position = SCNVector3(0.065, 0.09, 0)
         crankPivot.addChildNode(rod)
 
@@ -283,7 +350,8 @@ final class MechanicalPlanetariumScene {
     }
 
     private func buildPhaseDial(into scene: SCNScene) {
-        phaseDial.position = SCNVector3(-1.02, 0.36, 0.63)
+        phaseDial.position = SCNVector3(-1.06, 0.36, 0.63)
+        phaseDial.scale = SCNVector3(1.17, 1.17, 1.17)
         let hinge = box(width: 0.45, height: 0.035, depth: 0.12, color: color(0.72, 0.54, 0.29))
         hinge.position = SCNVector3(-1.02, 0.023, 0.63)
         scene.rootNode.addChildNode(hinge)
@@ -358,9 +426,17 @@ final class MechanicalPlanetariumScene {
         let ambient = SCNNode()
         ambient.light = SCNLight()
         ambient.light?.type = .ambient
-        ambient.light?.intensity = 235
-        ambient.light?.color = color(0.5, 0.58, 0.85)
+        ambient.light?.intensity = 385
+        ambient.light?.color = color(0.78, 0.83, 0.95)
         scene.rootNode.addChildNode(ambient)
+
+        let key = SCNNode()
+        key.light = SCNLight()
+        key.light?.type = .directional
+        key.light?.intensity = 290
+        key.light?.color = color(1, 0.89, 0.71)
+        key.eulerAngles = SCNVector3(-0.48, -0.40, 0)
+        scene.rootNode.addChildNode(key)
 
         sunLight.light = SCNLight()
         sunLight.light?.type = .omni
@@ -375,6 +451,11 @@ final class MechanicalPlanetariumScene {
         for node in bracketFolds { setFold(node, amount: folding.brackets) }
         crossbar.position.y = CGFloat(0.02 + 0.62 * folding.brackets)
         updatePhaseDial(mechanism, folding: folding.bodies)
+        for (index, gear) in gears.enumerated() {
+            gear.isHidden = folding.brackets < 0.14
+            gear.position.y = CGFloat(0.07 + (index == 0 ? 0.17 : 0.12) * folding.brackets)
+            gear.eulerAngles.z = CGFloat(mechanism.crankAngle * (index == 0 ? 1 : -1.5))
+        }
         for button in controlButtons { button.isHidden = !gameplay.canInteract }
         pauseMark.isHidden = gameplay.isPaused
         resumeMark.isHidden = !gameplay.isPaused
@@ -444,9 +525,10 @@ final class MechanicalPlanetariumScene {
     }
 
     private func orbitRing(radius: Double, tint: NSColor) -> SCNNode {
-        let torus = SCNTorus(ringRadius: radius, pipeRadius: 0.004)
+        let torus = SCNTorus(ringRadius: radius, pipeRadius: 0.009)
         torus.firstMaterial?.diffuse.contents = tint
-        torus.firstMaterial?.metalness.contents = 0.75
+        torus.firstMaterial?.metalness.contents = 0.22
+        torus.firstMaterial?.emission.contents = color(0.16, 0.11, 0.04)
         return SCNNode(geometry: torus)
     }
 

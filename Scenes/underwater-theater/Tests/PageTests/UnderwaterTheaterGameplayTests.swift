@@ -2,6 +2,25 @@ import PageBehavior
 import XCTest
 
 final class UnderwaterTheaterGameplayTests: XCTestCase {
+    func testSpeciesLayersHaveClosingHysteresis() {
+        var reef = ReefVisibility()
+        for (progress, expected) in [
+            (0.17, 0), (0.18, 1), (0.50, 2), (0.70, 3), (0.92, 3),
+            (0.93, 4), (0.91, 4), (0.89, 3), (0.66, 3), (0.55, 2), (0.04, 0),
+        ] {
+            reef.advance(progress: progress)
+            XCTAssertEqual(reef.layer, expected, "展开进度 \(progress)")
+        }
+    }
+
+    func testSchoolMovesAtFixedFullOpening() {
+        var state = UnderwaterTheaterGameplay()
+        let folding = UnderwaterTheaterFolding(progress: 0.96)
+        let start = state.fishProgress
+        state.advance(bookProgress: 0.96, clock: 1, deltaTime: 1, folding: folding)
+        XCTAssertNotEqual(state.fishProgress, start)
+    }
+
     func testPresetCurrentWhenOpen() {
         var state = UnderwaterTheaterGameplay()
         let open = UnderwaterTheaterFolding(progress: 1)

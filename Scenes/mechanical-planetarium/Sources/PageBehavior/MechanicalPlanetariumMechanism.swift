@@ -8,8 +8,8 @@ public struct MechanicalPlanetariumMechanism: Equatable, Sendable {
     public static let moonCyclePerTurn = 1.0
     public static let earthSpinPerTurn = 2.2
 
-    public static let earthOrbitRadius = 0.44
-    public static let moonOrbitRadius = 0.11
+    public static let earthOrbitRadius = 0.64
+    public static let moonOrbitRadius = 0.15
 
     /// 曲柄一圈对应三个月相停靠（新月、上弦、满月）。
     public static let observationTurnOffsets: [Double] = [0, 0.25, 0.5]

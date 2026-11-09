@@ -6,9 +6,11 @@ public struct MechanicalPlanetariumFolding: Equatable, Sendable {
     public let orbits: Double
     public let bodies: Double
     public let crank: Double
+    public let progress: Double
 
     public init(progress: Double) {
         let progress = Self.clamp(progress)
+        self.progress = progress
         backdrop = Self.stage(progress, start: 0, end: 0.35)
         basePlate = Self.stage(progress, start: 0.02, end: 0.3)
         brackets = Self.stage(progress, start: 0.12, end: 0.52)

@@ -65,13 +65,14 @@ public struct RoomInComputerGameplay: Equatable, Sendable {
     public private(set) var guestMove: Double
     public private(set) var guestPath: [RoomGuestWaypoint] = []
     public var draggingStrip: Bool
-    private var guestShelvedForFold = false
+    public static let paperSlot = RoomGuestWaypoint(x: 0.63, z: 0.59)
+    private var entrancePath: [RoomGuestWaypoint] = []
+    private var entranceDestination: RoomGuestPose?
 
     public static let morningDock = 0.0
     public static let afternoonDock = 0.5
     public static let eveningDock = 1.0
     public static let walkDuration = 0.85
-    public static let interactionOpenBed = 0.35
 
     public init() {
         self.init(restoredTime: Self.afternoonDock)
@@ -86,7 +87,6 @@ public struct RoomInComputerGameplay: Equatable, Sendable {
         guestMove = 1
         guestPath = [RoomGuestWaypoint(x: pose.x, z: pose.z)]
         draggingStrip = false
-        guestShelvedForFold = false
     }
 
     public static func clamp(_ value: Double) -> Double {
@@ -141,21 +141,16 @@ public struct RoomInComputerGameplay: Equatable, Sendable {
 
     public mutating func advance(deltaTime: Double, folding: RoomInComputerFolding) {
         let delta = max(0, deltaTime)
-        let roomOpen = folding.bed > Self.interactionOpenBed
-
-        if !roomOpen {
-            if !guestShelvedForFold {
-                shelveGuestForFold()
-                guestShelvedForFold = true
+        if !folding.canChangeTime {
+            if entranceDestination == nil {
+                let pose = guestDisplay
+                entranceDestination = pose
+                entrancePath = RoomGuestRouter.path(
+                    from: Self.paperSlot, to: RoomGuestWaypoint(x: pose.x, z: pose.z))
             }
             return
         }
-
-        if guestShelvedForFold {
-            guestShelvedForFold = false
-            resumeGuestAfterFold()
-        }
-
+        entranceDestination = nil
         if guestMove < 1 {
             guestMove = min(1, guestMove + delta / Self.walkDuration)
         }
@@ -186,18 +181,14 @@ public struct RoomInComputerGameplay: Equatable, Sendable {
         zh ? "房间时光" : "Room time"
     }
 
-    private mutating func shelveGuestForFold() {
-        guestMove = 1
-        let home = Self.pose(for: .morning)
-        guestFrom = home
-        guestTo = home
-        guestGoal = .morning
-        guestPath = [RoomGuestWaypoint(x: home.x, z: home.z)]
-    }
-
-    private mutating func resumeGuestAfterFold() {
-        shelveGuestForFold()
-        retargetGuestIfNeeded()
+    public func entrancePoint(at progress: Double) -> RoomGuestWaypoint {
+        let pose = entranceDestination ?? guestDisplay
+        let path =
+            entrancePath.isEmpty
+            ? RoomGuestRouter.path(from: Self.paperSlot, to: RoomGuestWaypoint(x: pose.x, z: pose.z))
+            : entrancePath
+        let point = RoomGuestRouter.point(along: path, progress: progress)
+        return RoomGuestWaypoint(x: point.x, z: point.z)
     }
 
     private mutating func retargetGuestIfNeeded() {

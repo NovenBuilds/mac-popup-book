@@ -148,6 +148,10 @@ final class RoomInComputerScene {
         scene.rootNode.addChildNode(chairFold)
         lampFold = buildLamp()
         scene.rootNode.addChildNode(lampFold)
+        let slot = RoomInComputerGameplay.paperSlot
+        let slotEdge = box(width: 0.21, height: 0.006, depth: 0.11, color: color(0.42, 0.29, 0.20))
+        slotEdge.position = SCNVector3(slot.x, 0.008, slot.z)
+        scene.rootNode.addChildNode(slotEdge)
         scene.rootNode.addChildNode(guestAnchor)
         buildTimeStrip(on: scene)
         buildCameraAndLights(on: scene)
@@ -313,13 +317,24 @@ final class RoomInComputerScene {
         lampFold.isHidden = folding.lamp < 0.05
 
         let guest = gameplay.guestDisplay
+        let entrance = folding.canChangeTime ? nil : folding.guestTravel
         guestAppearance.update(
-            activity: guest.activity, walk: gameplay.guestMove, clock: context.clock, delta: context.deltaTime
-        )
+            activity: guest.activity, walk: gameplay.guestMove, clock: context.clock,
+            delta: context.deltaTime, entrance: entrance)
         let seat = guestAppearance.seatBlend
-        guestAnchor.position = SCNVector3(guest.x - 0.24 * seat, 0, guest.z - 0.18 * seat)
+        let position =
+            entrance.map { gameplay.entrancePoint(at: $0) } ?? RoomGuestWaypoint(x: guest.x, z: guest.z)
+        guestAnchor.position = SCNVector3(position.x - 0.24 * seat, 0, position.z - 0.18 * seat)
+        guestAnchor.eulerAngles.x = CGFloat(-(1 - folding.guestUpright) * .pi / 2)
         var heading = guestHeading(guest.activity)
-        if gameplay.guestMove < 0.99 {
+        if let entrance {
+            let ahead = gameplay.entrancePoint(at: min(1, entrance + 0.015))
+            let behind = gameplay.entrancePoint(at: max(0, entrance - 0.015))
+            let routeHeading = atan2(ahead.x - behind.x, ahead.z - behind.z)
+            let blend = RoomInComputerGameplay.clamp((entrance - 0.88) / 0.12)
+            let angle = heading - routeHeading
+            heading = routeHeading + atan2(sin(angle), cos(angle)) * blend
+        } else if gameplay.guestMove < 0.99 {
             let p = gameplay.guestMove
             let eased = p * p * (3 - 2 * p)
             let ahead = RoomGuestRouter.point(along: gameplay.guestPath, progress: min(1, eased + 0.015))
@@ -329,12 +344,9 @@ final class RoomInComputerScene {
         }
         heading *= (1 - seat)
         let turn = atan2(sin(heading - lastHeading), cos(heading - lastHeading))
-        lastHeading += turn * min(1, max(0, context.deltaTime) * 11)
+        lastHeading += entrance == nil ? turn * min(1, max(0, context.deltaTime) * 11) : turn
         guestAnchor.eulerAngles.y = CGFloat(lastHeading)
-        let reveal = RoomInComputerGameplay.clamp(
-            (folding.bed - RoomInComputerGameplay.interactionOpenBed) / 0.24)
-        guestAnchor.opacity = CGFloat(reveal)
-        guestAnchor.isHidden = reveal == 0
+        guestAnchor.isHidden = folding.guestUpright == 0
 
         applyLighting(time: gameplay.lightForTime, folding: folding)
     }

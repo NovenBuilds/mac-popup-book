@@ -2,8 +2,8 @@
   "id": "llm-evolution",
   "order": 0,
   "names": {
-    "en": "How Text Grows Into Capability",
-    "zh-Hans": "文字如何长出能力"
+    "en": "Letter Workshop",
+    "zh-Hans": "字间工坊"
   },
   "contractVersion": 1,
   "service": "local.ssr.forestbook.page.llm-evolution",
