@@ -448,9 +448,9 @@ final class PocketTownScene {
         signalLamp.geometry?.firstMaterial?.diffuse.contents =
             gameplay.trainIsRunning
             ? color(0.98, 0.58, 0.19) : color(0.37, 0.78, 0.59)
-        trainNode.position = SCNVector3(sample.position.x, 0.048, sample.position.y)
+        trainNode.position = SCNVector3(sample.position.x, -0.16 + 0.208 * folding.train, sample.position.y)
         trainNode.eulerAngles.y = sample.heading
-        trainNode.isHidden = folding.routes < 0.18
+        trainNode.isHidden = folding.train < 0.05
         switchNode.isHidden = folding.routes < 0.35
     }
 

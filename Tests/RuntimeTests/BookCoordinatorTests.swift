@@ -232,6 +232,47 @@ private func descriptor(_ id: String, version: Int = 1) -> Data {
         XCTAssertEqual(c.state.progress, 0.5, accuracy: 0.001)
         XCTAssertFalse(port.stopped)
     }
+    func testAudioStopsWhileClosedMutedOrTurningAndResumesOnlyWhenOpen() {
+        let clock = TestDisplay()
+        let settings = TestPreferences()
+        var ports: [String: TestPort] = [:]
+        let coordinator = BookCoordinator(
+            registry: PageRegistry(
+                descriptors: [descriptor("red"), descriptor("blue")], published: ["red", "blue"]),
+            source: TestAngle(), clock: clock, settings: settings
+        ) { page in
+            let port = TestPort()
+            ports[page.id] = port
+            return port
+        }
+        var events: [String] = []
+        coordinator.onScopeActive = { id, active in events.append("\(id):\(active)") }
+        coordinator.setFollowing(false)
+        coordinator.setSound(true)
+        coordinator.setActive(true)
+        ports["red"]?.onReady?()
+        clock.step(0.5)
+        XCTAssertEqual(events, ["red:true"])
+
+        coordinator.setManual(0)
+        clock.step(0.5)
+        coordinator.setSound(false)
+        coordinator.setSound(true)
+        clock.step(0.5)
+        XCTAssertEqual(events, ["red:true", "red:false"])
+        coordinator.setManual(1)
+        clock.step(0.5)
+        coordinator.setSound(false)
+        coordinator.setSound(true)
+        XCTAssertEqual(events.suffix(3), ["red:true", "red:false", "red:true"])
+
+        coordinator.open("blue")
+        XCTAssertEqual(events.last, "red:false")
+        ports["blue"]?.onReady?()
+        clock.step(1.3)
+        XCTAssertEqual(events.last, "blue:true")
+    }
+
     func testPhysicalClosingPausesPageTurnWithoutQueueing() {
         let clock = TestDisplay()
         var ports: [String: TestPort] = [:]

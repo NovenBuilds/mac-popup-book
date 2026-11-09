@@ -39,11 +39,12 @@ bash scripts/run.sh
 ```sh
 bash scripts/check.sh
 bash scripts/integration.sh
+bash scripts/integration.sh --published
 python3 scripts/page.py list
 python3 scripts/page.py check pocket-town
 python3 scripts/page.py preview pocket-town
 ```
 
-单页预览使用手动角度、临时存档和静音。后台验收可检查故障隔离与渲染，实机开合和试听通过正式应用进行。已有《林间小屋》的设置和存档沿用原路径。
+单页预览使用手动角度、临时存档和静音。后台验收可检查故障隔离与渲染，加上 `--published` 可检查当前发布清单里的整书和交互。实机开合和试听通过正式应用进行。已有《林间小屋》的设置和存档沿用原路径。
 
 [工程契约](docs/engineering/PAGE_CONTRACT.md) · [场景开发流程](docs/engineering/SCENE_WORKFLOW.md) · [成品验收标准](docs/engineering/RELEASE_ACCEPTANCE.md)

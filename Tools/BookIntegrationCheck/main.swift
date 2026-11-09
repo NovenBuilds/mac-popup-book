@@ -34,6 +34,7 @@ extension PageProcessConnection: PageProcessPort {}
     var copied: MTLTexture?
     var forest: Bool
     var consumed = false
+    var publishedCheck: PublishedBookCheck?
     init() throws {
         guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue(),
             let resources = Bundle.main.resourceURL
@@ -50,7 +51,13 @@ extension PageProcessConnection: PageProcessPort {}
         }
         let registry = PageRegistry(descriptors: descriptors, published: ids)
         forest = ids == ["forest-cabin"]
-        guard forest || registry.pages.count >= 2 else { throw PageError.invalidDescriptor }
+        if ProcessInfo.processInfo.arguments.contains("--published") {
+            guard !ids.isEmpty, registry.pages.map(\.id) == ids else { throw PageError.invalidDescriptor }
+            publishedCheck = PublishedBookCheck(pages: ids)
+        }
+        guard publishedCheck != nil || forest || registry.pages.count >= 2 else {
+            throw PageError.invalidDescriptor
+        }
         coordinator = BookCoordinator(
             registry: registry, source: source, clock: clock, settings: CheckSettings(),
             wallClock: SystemWallClock()
@@ -61,12 +68,14 @@ extension PageProcessConnection: PageProcessPort {}
             ).path
             let port = PageProcessConnection(
                 service: page.service, device: device, supervisor: self.supervisor, expectedPath: path,
-                restore: { (nil, nil) })
+                restore: { [weak self] in (self?.publishedCheck?.checkpoints[page.id], nil) })
+            port.onCheckpoint = { [weak self] data in self?.publishedCheck?.checkpoints[page.id] = data }
             port.setViewport(width: 1600, height: 1100)
             self.ports[page.id] = port
             return port
         }
         coordinator.onChange = { [weak self] in self?.consume() }
+        coordinator.onSounds = { [weak self] _, sounds in self?.publishedCheck?.record(sounds) }
         coordinator.setFollowing(false)
     }
     func start() {
@@ -132,6 +141,10 @@ extension PageProcessConnection: PageProcessPort {}
     func step() {
         let now = clock.now
         guard now < deadline else { fail("后台验收总超时，阶段\(stage)") }
+        if let publishedCheck {
+            publishedCheck.step(self, now: now)
+            return
+        }
         if forest {
             forestStep(now)
             return

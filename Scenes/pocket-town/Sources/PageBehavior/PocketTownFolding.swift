@@ -6,6 +6,7 @@ public struct PocketTownFolding: Equatable, Sendable {
     public let bridge: Double
     public let tower: Double
     public let stationCanopy: Double
+    public let train: Double
 
     public init(progress: Double) {
         let progress = Self.clamp(progress)
@@ -15,6 +16,7 @@ public struct PocketTownFolding: Equatable, Sendable {
         bridge = Self.stage(progress, start: 0.34, end: 0.74)
         tower = Self.stage(progress, start: 0.46, end: 0.9)
         stationCanopy = Self.stage(progress, start: 0.68, end: 1)
+        train = Self.stage(progress, start: PocketTownGameplay.foldedResetProgress, end: 0.42)
     }
 
     static func stage(_ progress: Double, start: Double, end: Double) -> Double {

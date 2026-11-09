@@ -331,7 +331,10 @@ final class RoomInComputerScene {
         let turn = atan2(sin(heading - lastHeading), cos(heading - lastHeading))
         lastHeading += turn * min(1, max(0, context.deltaTime) * 11)
         guestAnchor.eulerAngles.y = CGFloat(lastHeading)
-        guestAnchor.isHidden = folding.bed < 0.2
+        let reveal = RoomInComputerGameplay.clamp(
+            (folding.bed - RoomInComputerGameplay.interactionOpenBed) / 0.24)
+        guestAnchor.opacity = CGFloat(reveal)
+        guestAnchor.isHidden = reveal == 0
 
         applyLighting(time: gameplay.lightForTime, folding: folding)
     }
