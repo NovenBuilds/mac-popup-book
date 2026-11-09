@@ -9,7 +9,7 @@ import plistlib
 import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-APP = ROOT / 'build/林间小屋.app'
+APP = ROOT / 'build/开合之间.app'
 
 
 def digest(path):

@@ -7,7 +7,7 @@ import SwiftUI
     @StateObject private var model = HostModel()
     @NSApplicationDelegateAdaptor(BookDelegate.self) var delegate
     var body: some Scene {
-        Window(L10n.text("林间小屋"), id: "book") {
+        Window(L10n.text("开合之间"), id: "book") {
             BookView(model: model).onAppear { delegate.model = model }.onDisappear { model.stop() }
         }.defaultSize(width: 1440, height: 960).windowStyle(.hiddenTitleBar).commands {
             CommandMenu(L10n.text("互动")) {

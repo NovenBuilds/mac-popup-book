@@ -1,1 +1,11 @@
-{"version":1,"pages":["forest-cabin"]}
+{
+  "version": 1,
+  "pages": [
+    "forest-cabin",
+    "pocket-town",
+    "room-in-computer",
+    "underwater-theater",
+    "mechanical-planetarium",
+    "llm-evolution"
+  ]
+}
