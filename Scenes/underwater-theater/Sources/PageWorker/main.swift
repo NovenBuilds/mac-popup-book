@@ -7,6 +7,8 @@ import PopupBookCore
 @MainActor final class UnderwaterTheaterPage: RenderedBookPage {
     private let scene: UnderwaterTheaterScene
     private var gameplay = UnderwaterTheaterGameplay()
+    private var pendingCurrentSound = false
+    private var lastCurrentSound = -1.0
     private var context = WorldContext(progress: 0, clock: 0, deltaTime: 0, stableDuration: 0)
 
     init() throws {
@@ -27,11 +29,18 @@ import PopupBookCore
                 let point = scene.flowPoint(x: event.x, y: event.y)
                 let tap =
                     scene.pickTarget(x: event.x, y: event.y) ?? point.flatMap { gameplay.tapTarget(at: $0) }
-                if let tap {
+                if let point,
+                    hypot(point.x - gameplay.flowPoint.x, point.y - gameplay.flowPoint.y) < 0.11
+                {
+                    gameplay.beginDrag(at: point, folding: folding, now: context.clock)
+                } else if let tap {
                     gameplay.handleTap(tap, folding: folding, now: context.clock)
                 } else if let point {
                     gameplay.beginDrag(at: point, folding: folding, now: context.clock)
+                } else {
+                    return
                 }
+                pendingCurrentSound = gameplay.canInteract
             case .move, .drag:
                 if let point = scene.flowPoint(x: event.x, y: event.y) {
                     gameplay.moveDrag(to: point, folding: folding)
@@ -43,8 +52,16 @@ import PopupBookCore
             }
         case .cancel:
             gameplay.cancelDrag()
-        case .action:
-            break
+        case .action(let action):
+            let target: UnderwaterTheaterTapTarget
+            switch action {
+            case "current-west": target = .westSeaweed
+            case "current-arch": target = .archRise
+            case "current-shell": target = .shellLedge
+            default: return
+            }
+            gameplay.handleTap(target, folding: folding, now: context.clock)
+            pendingCurrentSound = gameplay.canInteract
         }
     }
 
@@ -55,9 +72,22 @@ import PopupBookCore
             bookProgress: context.progress, clock: context.clock, deltaTime: context.deltaTime,
             folding: folding)
         let zh = isChinese
+        let shouldPlay =
+            gameplay.canInteract && pendingCurrentSound && context.clock - lastCurrentSound > 0.20
+        pendingCurrentSound = false
+        if shouldPlay { lastCurrentSound = context.clock }
         var presentation = PagePresentation(
             caption: gameplay.caption(zh: zh),
-            accessibility: message("海底剧场", "Underwater Theater"))
+            accessibility: message("海底剧场", "Underwater Theater"),
+            actions: [
+                PageAction(
+                    "current-west", title: message("左侧浅流", "Seagrass current"), enabled: gameplay.canInteract),
+                PageAction(
+                    "current-arch", title: message("拱门水流", "Arch current"), enabled: gameplay.canInteract),
+                PageAction(
+                    "current-shell", title: message("贝壳水流", "Shell current"), enabled: gameplay.canInteract),
+            ],
+            sounds: shouldPlay ? [PageSound("sea.current", .play)] : [])
         if let notice = gameplay.notice {
             presentation.notice = noticeText(notice, zh: zh)
         }
@@ -69,15 +99,17 @@ import PopupBookCore
         scene.setViewport(CGSize(width: texture.width, height: texture.height))
         try scene.render(
             into: texture, command: command,
-            folding: UnderwaterTheaterFolding(progress: context.progress), gameplay: gameplay)
+            folding: UnderwaterTheaterFolding(progress: context.progress), gameplay: gameplay,
+            clock: context.clock)
     }
 
     func pause() -> Data? {
         gameplay.cancelDrag()
+        pendingCurrentSound = false
         return nil
     }
 
-    func finish() -> Data? { nil }
+    func finish() -> Data? { pause() }
 
     private var isChinese: Bool {
         Bundle.preferredLocalizations(from: ["en", "zh-Hans"], forPreferences: Locale.preferredLanguages)

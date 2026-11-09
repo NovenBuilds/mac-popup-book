@@ -8,5 +8,13 @@
   "contractVersion": 1,
   "service": "local.ssr.forestbook.page.underwater-theater",
   "product": "StandaloneWorker",
-  "audio": []
+  "audio": [
+    {
+      "id": "sea.current",
+      "path": "Audio/current.wav",
+      "volume": 0.31,
+      "loops": false,
+      "autostart": false
+    }
+  ]
 }

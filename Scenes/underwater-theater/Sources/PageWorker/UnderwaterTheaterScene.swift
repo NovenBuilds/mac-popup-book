@@ -7,10 +7,11 @@ final class UnderwaterTheaterScene {
     private let renderer: SCNRenderer
     private var colorTarget: MTLTexture?
     private var depthTarget: MTLTexture?
-    private var seabedLayers: [SCNNode] = []
     private var coralFolds: [SCNNode] = []
     private var seaweedFolds: [SCNNode] = []
     private var fishNodes: [SCNNode] = []
+    private var fishTails: [SCNNode] = []
+    private var currentMarkers: [SCNNode] = []
     private var flowBead = SCNNode()
     private var flowStreaks: [SCNNode] = []
     private var shellLid = SCNNode()
@@ -62,9 +63,9 @@ final class UnderwaterTheaterScene {
 
     func render(
         into texture: MTLTexture, command: MTLCommandBuffer,
-        folding: UnderwaterTheaterFolding, gameplay: UnderwaterTheaterGameplay
+        folding: UnderwaterTheaterFolding, gameplay: UnderwaterTheaterGameplay, clock: Double
     ) throws {
-        update(folding, gameplay: gameplay)
+        update(folding, gameplay: gameplay, clock: clock)
         let size = CGSize(width: texture.width, height: texture.height)
         if colorTarget?.width != texture.width || colorTarget?.height != texture.height {
             let color = MTLTextureDescriptor.texture2DDescriptor(
@@ -119,51 +120,63 @@ final class UnderwaterTheaterScene {
     }
 
     private func buildSeabed(into scene: SCNScene) {
-        let layers: [(Double, NSColor)] = [
-            (3.9, color(0.72, 0.62, 0.48)),
-            (3.5, color(0.62, 0.52, 0.4)),
-            (3.0, color(0.54, 0.44, 0.34)),
+        let layers: [(Double, Double, Double, NSColor)] = [
+            (3.94, 2.42, -0.08, color(0.16, 0.43, 0.44)),
+            (3.86, 2.35, -0.052, color(0.80, 0.80, 0.61)),
+            (3.78, 2.29, -0.025, color(0.91, 0.84, 0.64)),
         ]
-        for (width, tint) in layers {
-            let bed = foldedPlane(width: width, depth: 2.5, color: tint)
-            bed.position = SCNVector3(0, -0.02, 0.08)
-            seabedLayers.append(bed)
-            scene.rootNode.addChildNode(bed)
+        for (width, depth, y, tint) in layers {
+            let page = box(width: width, height: 0.025, depth: depth, color: tint)
+            page.position = SCNVector3(0, y, 0.03)
+            scene.rootNode.addChildNode(page)
         }
-        let ridge = box(width: 2.6, height: 0.03, depth: 0.18, color: color(0.48, 0.4, 0.32))
-        ridge.position = SCNVector3(0, 0.01, 0.22)
-        scene.rootNode.addChildNode(ridge)
+        let spine = box(width: 0.018, height: 0.004, depth: 2.22, color: color(0.65, 0.59, 0.41))
+        scene.rootNode.addChildNode(spine)
+        for (index, z) in [-0.83, -0.63, -0.45].enumerated() {
+            let depth = box(
+                width: 2.75 + Double(index) * 0.18, height: 0.03, depth: 0.22,
+                color: color(0.36 + Double(index) * 0.085, 0.66, 0.61))
+            depth.position = SCNVector3(0, 0.001, z)
+            scene.rootNode.addChildNode(depth)
+        }
+        for index in 0..<36 {
+            let x = Double((index * 47) % 131) / 42 - 1.55
+            let z = Double((index * 31) % 77) / 66 - 0.17
+            let grain = SCNNode(geometry: SCNSphere(radius: 0.009 + Double(index % 3) * 0.003))
+            grain.scale = SCNVector3(1.5, 0.16, 0.9)
+            grain.position = SCNVector3(x, 0, z)
+            grain.geometry?.firstMaterial?.diffuse.contents = color(0.67, 0.61, 0.44).withAlphaComponent(0.65)
+            scene.rootNode.addChildNode(grain)
+        }
     }
 
     private func buildCoralArch(into scene: SCNScene) {
-        let leftPillar = coralColumn(x: -0.26, z: 0.1, height: 0.62, tint: color(0.86, 0.42, 0.36))
-        let rightPillar = coralColumn(x: 0.3, z: 0.08, height: 0.58, tint: color(0.78, 0.48, 0.4))
-        let arch = foldedBox(width: 0.72, height: 0.12, depth: 0.14, color: color(0.9, 0.5, 0.42))
-        arch.position = SCNVector3(0.02, 0.58, 0.12)
-        coralFolds += [leftPillar, rightPillar, arch]
-        scene.rootNode.addChildNode(leftPillar)
-        scene.rootNode.addChildNode(rightPillar)
-        scene.rootNode.addChildNode(arch)
-
-        let backVeil = box(width: 0.5, height: 0.42, depth: 0.05, color: color(0.32, 0.38, 0.48))
-        backVeil.opacity = 0.55
-        backVeil.position = SCNVector3(-0.35, 0.22, -0.08)
-        backVeil.name = "coral-veil"
-        coralFolds.append(backVeil)
-        scene.rootNode.addChildNode(backVeil)
-    }
-
-    private func coralColumn(x: Double, z: Double, height: Double, tint: NSColor) -> SCNNode {
-        let pivot = SCNNode()
-        pivot.position = SCNVector3(x, 0.02, z)
-        let base = box(width: 0.2, height: height * 0.55, depth: 0.16, color: tint)
-        base.position.y = height * 0.28
-        let branch = box(width: 0.14, height: height * 0.35, depth: 0.1, color: color(0.92, 0.52, 0.44))
-        branch.position = SCNVector3(0.05, height * 0.62, 0.02)
-        branch.eulerAngles.z = 0.18
-        pivot.addChildNode(base)
-        pivot.addChildNode(branch)
-        return pivot
+        let arch = NSBezierPath()
+        arch.move(to: CGPoint(x: -0.49, y: 0))
+        arch.curve(
+            to: CGPoint(x: 0.46, y: 0),
+            controlPoint1: CGPoint(x: -0.64, y: 1.02), controlPoint2: CGPoint(x: 0.62, y: 1.02))
+        arch.line(to: CGPoint(x: 0.30, y: 0))
+        arch.curve(
+            to: CGPoint(x: -0.29, y: 0),
+            controlPoint1: CGPoint(x: 0.41, y: 0.74), controlPoint2: CGPoint(x: -0.40, y: 0.74))
+        arch.close()
+        for (index, tint) in [color(0.69, 0.31, 0.34), color(0.91, 0.48, 0.39)].enumerated() {
+            let coral = paperCut(arch, thickness: 0.045, tint: tint)
+            coral.position = SCNVector3(0, 0.013, 0.025 + Double(index) * 0.052)
+            coralFolds.append(coral)
+            scene.rootNode.addChildNode(coral)
+            if index == 1 {
+                for i in 0..<9 {
+                    let angle = Double(i) / 8 * .pi
+                    let dot = SCNNode(geometry: SCNSphere(radius: 0.019 + Double(i % 3) * 0.006))
+                    dot.scale.z = 0.26
+                    dot.position = SCNVector3(0.37 * cos(angle), 0.072 + 0.59 * sin(angle), 0.029)
+                    dot.geometry?.firstMaterial?.diffuse.contents = color(0.98, 0.73, 0.56)
+                    coral.addChildNode(dot)
+                }
+            }
+        }
     }
 
     private func buildSeaweed(into scene: SCNScene) {
@@ -180,16 +193,19 @@ final class UnderwaterTheaterScene {
     }
 
     private func seaweedBlade(height: Double) -> SCNNode {
-        let pivot = SCNNode()
-        let stem = box(width: 0.04, height: height, depth: 0.025, color: color(0.22, 0.58, 0.42))
-        stem.opacity = 0.62
-        stem.position.y = height / 2
-        let tip = box(width: 0.06, height: height * 0.22, depth: 0.03, color: color(0.3, 0.66, 0.48))
-        tip.opacity = 0.48
-        tip.position.y = height * 0.9
-        pivot.addChildNode(stem)
-        pivot.addChildNode(tip)
-        return pivot
+        let outline = NSBezierPath()
+        outline.move(to: .zero)
+        outline.curve(
+            to: CGPoint(x: 0.048, y: height),
+            controlPoint1: CGPoint(x: -0.13, y: height * 0.33),
+            controlPoint2: CGPoint(x: 0.1, y: height * 0.68))
+        outline.curve(
+            to: .zero, controlPoint1: CGPoint(x: 0.24, y: height * 0.63),
+            controlPoint2: CGPoint(x: 0.015, y: height * 0.30))
+        outline.close()
+        let blade = paperCut(outline, thickness: 0.012, tint: color(0.18, 0.56, 0.44))
+        blade.opacity = 0.86
+        return blade
     }
 
     private func buildShell(into scene: SCNScene) {
@@ -207,14 +223,44 @@ final class UnderwaterTheaterScene {
             color(0.58, 0.82, 0.62), color(0.88, 0.64, 0.78), color(0.38, 0.62, 0.92),
         ]
         for (index, tint) in tints.enumerated() {
-            let fish = box(width: 0.08, height: 0.03, depth: 0.05, color: tint)
-            fish.name = "fish-\(index)"
-            let tail = box(width: 0.03, height: 0.02, depth: 0.02, color: color(0.28, 0.48, 0.58))
-            tail.position = SCNVector3(-0.05, 0, 0)
+            let fish = SCNNode()
+            let body = NSBezierPath()
+            body.move(to: CGPoint(x: -0.062, y: 0))
+            body.curve(
+                to: CGPoint(x: 0.077, y: 0),
+                controlPoint1: CGPoint(x: -0.02, y: 0.074), controlPoint2: CGPoint(x: 0.058, y: 0.055))
+            body.curve(
+                to: CGPoint(x: -0.062, y: 0),
+                controlPoint1: CGPoint(x: 0.052, y: -0.046), controlPoint2: CGPoint(x: -0.025, y: -0.04))
+            body.close()
+            fish.addChildNode(paperCut(body, thickness: 0.015, tint: tint))
+            let fin = NSBezierPath()
+            fin.move(to: .zero)
+            fin.line(to: CGPoint(x: -0.052, y: 0.042))
+            fin.line(to: CGPoint(x: -0.042, y: 0))
+            fin.line(to: CGPoint(x: -0.052, y: -0.033))
+            fin.close()
+            let tail = paperCut(
+                fin, thickness: 0.01, tint: tint.blended(withFraction: 0.28, of: .black) ?? tint)
+            tail.position.x = -0.051
             fish.addChildNode(tail)
+            for side in [-1.0, 1.0] {
+                let eye = SCNNode(geometry: SCNSphere(radius: 0.008))
+                eye.position = SCNVector3(0.048, 0.012, side * 0.01)
+                eye.geometry?.firstMaterial?.diffuse.contents = color(0.10, 0.19, 0.22)
+                fish.addChildNode(eye)
+            }
+            fish.scale = SCNVector3(1 - Double(index % 3) * 0.09, 1, 1)
             scene.rootNode.addChildNode(fish)
             fishNodes.append(fish)
+            fishTails.append(tail)
         }
+    }
+
+    private func paperCut(_ path: NSBezierPath, thickness: Double, tint: NSColor) -> SCNNode {
+        let geometry = SCNShape(path: path, extrusionDepth: thickness)
+        geometry.firstMaterial?.diffuse.contents = tint
+        return SCNNode(geometry: geometry)
     }
 
     private func buildFlowVisuals(into scene: SCNScene) {
@@ -246,28 +292,36 @@ final class UnderwaterTheaterScene {
             hit.position = SCNVector3(point.x, 0.2, point.y)
             tapHits.append(hit)
             scene.rootNode.addChildNode(hit)
+            let ring = SCNTorus(ringRadius: 0.086, pipeRadius: 0.007)
+            ring.firstMaterial?.diffuse.contents = color(0.22, 0.64, 0.68)
+            let marker = SCNNode(geometry: ring)
+            marker.position = SCNVector3(point.x, 0.052, point.y)
+            currentMarkers.append(marker)
+            scene.rootNode.addChildNode(marker)
         }
     }
 
     private func buildShimmer(into scene: SCNScene) {
-        for offset in [-0.9, 0.0, 0.85] {
-            let plane = foldedPlane(width: 1.1, depth: 1.6, color: color(0.72, 0.9, 0.95))
-            plane.opacity = 0.14
-            plane.position = SCNVector3(offset, 0.55, -0.15)
-            shimmerPlanes.append(plane)
-            scene.rootNode.addChildNode(plane)
+        for i in 0..<12 {
+            let glint = box(
+                width: 0.11 + Double(i % 3) * 0.067, height: 0.001, depth: 0.014,
+                color: color(0.98, 0.99, 0.79))
+            glint.position = SCNVector3(Double(i % 4) * 0.64 - 1, 0.018, Double(i / 4) * 0.41 - 0.65)
+            glint.eulerAngles.y = 0.32
+            shimmerPlanes.append(glint)
+            scene.rootNode.addChildNode(glint)
         }
     }
 
     private func buildCameraAndLights(into scene: SCNScene) {
         let camera = SCNCamera()
         camera.usesOrthographicProjection = true
-        camera.orthographicScale = 2.35
+        camera.orthographicScale = 1.73
         camera.zNear = 0.1
         camera.zFar = 20
         let cameraNode = SCNNode()
         cameraNode.camera = camera
-        cameraNode.position = SCNVector3(0, 2.1, 6.8)
+        cameraNode.position = SCNVector3(1.12, 3.65, 6.8)
         cameraNode.look(at: SCNVector3(0, 0.15, 0))
         scene.rootNode.addChildNode(cameraNode)
         renderer.pointOfView = cameraNode
@@ -288,40 +342,29 @@ final class UnderwaterTheaterScene {
         scene.rootNode.addChildNode(caustic)
     }
 
-    private func update(_ folding: UnderwaterTheaterFolding, gameplay: UnderwaterTheaterGameplay) {
-        let seabedLift = folding.seabed
-        for (index, layer) in seabedLayers.enumerated() {
-            setFold(layer, amount: seabedLift)
-            let lift = -0.04 + seabedLift * (0.02 + Double(index) * 0.01)
-            layer.position.y = CGFloat(lift)
-        }
-
-        for node in coralFolds {
-            if node.name == "coral-veil" {
-                setFold(node, amount: folding.coral * 0.7)
-                node.opacity = CGFloat(0.3 + folding.fish * 0.35)
-            } else {
-                setFold(node, amount: folding.coral)
-            }
-        }
+    private func update(
+        _ folding: UnderwaterTheaterFolding, gameplay: UnderwaterTheaterGameplay, clock: Double
+    ) {
+        for node in coralFolds { setFold(node, amount: folding.coral) }
 
         let sway = CGFloat(gameplay.flowStrength * 0.22)
         for (index, blade) in seaweedFolds.enumerated() {
             setFold(blade, amount: folding.seaweed)
-            blade.eulerAngles.z = sway * (index.isMultiple(of: 2) ? 1 : -1)
+            blade.eulerAngles.z =
+                CGFloat(sin(clock * 1.6 + Double(index) * 0.8) * 0.08 * folding.seaweed) + sway
+                * (index.isMultiple(of: 2) ? 1 : -1)
         }
 
         for (index, plane) in shimmerPlanes.enumerated() {
-            plane.opacity = CGFloat(0.08 + folding.shimmer * 0.18)
-            let height = 0.35 + folding.shimmer * 0.35 + Double(index) * 0.04
-            plane.position.y = CGFloat(height)
+            plane.opacity = CGFloat((0.18 + 0.16 * sin(clock * 1.45 + Double(index))) * folding.shimmer)
+            plane.position.x = CGFloat(Double(index % 4) * 0.64 - 1 + 0.12 * sin(clock * 0.7 + Double(index)))
         }
 
         let flowScene = gameplay.flowPoint
         let showFlow = gameplay.canInteract && gameplay.flowStrength > 0.04
-        flowBead.isHidden = !showFlow
+        flowBead.isHidden = !gameplay.canInteract
         flowBead.position = SCNVector3(flowScene.x, Self.flowPlaneHeight, flowScene.y)
-        flowBead.opacity = CGFloat(min(1, gameplay.flowStrength * (gameplay.dragging ? 1 : 0.75)))
+        flowBead.opacity = CGFloat(0.55 + 0.45 * gameplay.flowStrength)
 
         let school = gameplay.schoolCenter()
         let blend = min(1, gameplay.flowStrength * 0.85)
@@ -329,8 +372,10 @@ final class UnderwaterTheaterScene {
         let fishHide = folding.fish < 0.2 || gameplay.fishProgress < 0.02 && folding.fish < 0.55
         for (index, fish) in fishNodes.enumerated() {
             let offset = fishFormationOffset(index: index, heading: heading)
+            let flutter = sin(clock * 7.3 + Double(index) * 0.83)
+            fishTails[index].eulerAngles.y = CGFloat(flutter * (0.32 + 0.22 * blend))
             fish.position = SCNVector3(
-                school.position.x + offset.x, 0.08 + Double(index % 3) * 0.02,
+                school.position.x + offset.x, 0.11 + Double(index % 3) * 0.034 + flutter * 0.012,
                 school.position.y + offset.y)
             fish.eulerAngles.y = CGFloat(-heading)
             let behindVeil = school.position.x < -0.2 && gameplay.fishProgress < 0.12
@@ -340,7 +385,8 @@ final class UnderwaterTheaterScene {
 
         updateFlowStreaks(origin: flowScene, strength: gameplay.flowStrength, active: showFlow)
         updateShell(fishNear: school.position, folding: folding)
-        for hit in tapHits { hit.isHidden = folding.coral < 0.45 }
+        for hit in tapHits { hit.isHidden = !gameplay.canInteract }
+        for marker in currentMarkers { marker.isHidden = !gameplay.canInteract }
     }
 
     private func sampleHeading(base: Double, steer: Double, blend: Double) -> Double {
@@ -381,22 +427,6 @@ final class UnderwaterTheaterScene {
 
     private func setFold(_ node: SCNNode, amount: Double) {
         node.eulerAngles.x = -CGFloat((1 - amount) * .pi / 2)
-    }
-
-    private func foldedPlane(width: Double, depth: Double, color: NSColor) -> SCNNode {
-        let pivot = SCNNode()
-        let plane = box(width: width, height: 0.02, depth: depth, color: color)
-        plane.position.y = 0.01
-        pivot.addChildNode(plane)
-        return pivot
-    }
-
-    private func foldedBox(width: Double, height: Double, depth: Double, color: NSColor) -> SCNNode {
-        let pivot = SCNNode()
-        let wall = box(width: width, height: height, depth: depth, color: color)
-        wall.position.y = height / 2
-        pivot.addChildNode(wall)
-        return pivot
     }
 
     private func box(width: Double, height: Double, depth: Double, color: NSColor) -> SCNNode {
