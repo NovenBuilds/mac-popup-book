@@ -13,8 +13,7 @@ import PopupBookCore
     private var restoreNotice: String?
 
     init() throws {
-        let guest = RoomGuestAppearance.make()
-        scene = try RoomInComputerScene(guestAppearance: guest.root)
+        scene = try RoomInComputerScene(guestAppearance: RoomGuestAppearance())
     }
 
     func prepare(_ startup: PageStartup) throws {
@@ -71,7 +70,7 @@ import PopupBookCore
         scene.setViewport(CGSize(width: texture.width, height: texture.height))
         try scene.render(
             into: texture, command: command,
-            folding: RoomInComputerFolding(progress: context.progress), gameplay: gameplay)
+            folding: RoomInComputerFolding(progress: context.progress), gameplay: gameplay, context: context)
     }
 
     func pause() -> Data? {

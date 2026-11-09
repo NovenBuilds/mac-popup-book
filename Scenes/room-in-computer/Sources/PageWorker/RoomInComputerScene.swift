@@ -20,17 +20,19 @@ final class RoomInComputerScene {
     private var chairFold = SCNNode()
     private var lampFold = SCNNode()
     private let guestAnchor = SCNNode()
+    private let guestAppearance: RoomGuestAppearance
     private var windowGlow = SCNNode()
     private var lampLight = SCNNode()
     private var ambientNode = SCNNode()
     private var keyLight = SCNNode()
 
-    init(guestAppearance: SCNNode) throws {
+    init(guestAppearance: RoomGuestAppearance) throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw PageError.missingResources }
         renderer = SCNRenderer(device: device, options: nil)
         renderer.scene = SCNScene()
         renderer.autoenablesDefaultLighting = false
-        guestAnchor.addChildNode(guestAppearance)
+        self.guestAppearance = guestAppearance
+        guestAnchor.addChildNode(guestAppearance.root)
         buildScene()
     }
 
@@ -62,9 +64,9 @@ final class RoomInComputerScene {
 
     func render(
         into texture: MTLTexture, command: MTLCommandBuffer,
-        folding: RoomInComputerFolding, gameplay: RoomInComputerGameplay
+        folding: RoomInComputerFolding, gameplay: RoomInComputerGameplay, context: WorldContext
     ) throws {
-        update(folding: folding, gameplay: gameplay)
+        update(folding: folding, gameplay: gameplay, context: context)
         let size = CGSize(width: texture.width, height: texture.height)
         if colorTarget?.width != texture.width || colorTarget?.height != texture.height {
             let color = MTLTextureDescriptor.texture2DDescriptor(
@@ -273,7 +275,9 @@ final class RoomInComputerScene {
         scene.rootNode.addChildNode(keyLight)
     }
 
-    private func update(folding: RoomInComputerFolding, gameplay: RoomInComputerGameplay) {
+    private func update(
+        folding: RoomInComputerFolding, gameplay: RoomInComputerGameplay, context: WorldContext
+    ) {
         floorNode.scale = SCNVector3(1, max(0.001, folding.floor), 1)
         setFold(backWallFold, amount: folding.walls)
         setFold(sideWallFold, amount: folding.walls, axisX: true)
@@ -287,6 +291,9 @@ final class RoomInComputerScene {
         guestAnchor.position = SCNVector3(guest.x, 0, guest.z)
         guestAnchor.eulerAngles.y = guestHeading(guest.activity)
         guestAnchor.isHidden = folding.bed < 0.2
+        guestAppearance.update(
+            activity: guest.activity, walk: gameplay.guestMove, clock: context.clock, delta: context.deltaTime
+        )
 
         applyLighting(time: gameplay.lightForTime, folding: folding)
     }
