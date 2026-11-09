@@ -81,35 +81,14 @@ import PopupBookCore
                     .action(
                         "observe-full", sound: "planet.detent", feedback: ["已暂停，满月", "Paused at Full moon"]),
                 ]
-            case "llm-evolution":
-                plan += [
-                    .action("show-replay", sound: "exhibit.paper", feedback: ["两种续写", "two endings"]),
-                    .settle(7), .angle(1, "act-1-prints"),
-                    .action("show-toggle", sound: "exhibit.paper", feedback: ["已暂停", "Show paused"]),
-                    .angle(0.44, "show-folded"), .angle(1, "show-resumed-position"),
-                    .feedback(["已暂停", "Show paused"]),
-                    .action("show-toggle", sound: "exhibit.paper", feedback: ["两种续写", "two endings"]),
-                    .action("show-next", sound: "exhibit.paper", feedback: ["更礼貌", "Polite cues"]),
-                    .settle(3), .angle(1, "act-2-keywords"),
-                    .action("toggle-source", sound: "exhibit.paper", feedback: ["2017"]),
-                    .angle(1, "show-source-card"),
-                    .action("toggle-source", sound: "exhibit.paper", feedback: ["更礼貌", "Polite cues"]),
-                    .action("show-next", sound: "exhibit.paper", feedback: ["图文判断", "prints a judgment"]),
-                    .settle(1), .angle(1, "act-3-picture"),
-                    .settle(7), .settle(3), .angle(1, "show-gallery"),
-                    .feedback(["巡演结束", "The show has ended"]),
-                    .action("show-previous", sound: "exhibit.paper", feedback: ["更礼貌", "Polite cues"]),
-                    .action("show-replay", sound: "exhibit.paper", feedback: ["两种续写", "two endings"]),
-                    .settle(7), .settle(5), .feedback(["更礼貌", "Polite cues"]),
-                    .settle(5), .settle(5), .feedback(["图文判断", "prints a judgment"]),
-                    .settle(6), .settle(5), .feedback(["巡演结束", "The show has ended"]),
-                    .angle(1, "uninterrupted-gallery"),
-                ]
             default:
                 break
             }
         }
-        if pages.contains("mechanical-planetarium"), pages.last != "mechanical-planetarium" {
+        if pages.contains("mechanical-planetarium"), let first = pages.first,
+            first != "mechanical-planetarium"
+        {
+            if pages.last == "mechanical-planetarium" { plan.append(.page(first)) }
             plan += [.page("mechanical-planetarium"), .feedback(["已暂停，满月", "Paused at Full moon"])]
         }
         steps = plan

@@ -22,7 +22,7 @@ jobs:
     if: >-
       ${{ !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      contains(fromJSON('["cursor/room-in-computer","cursor/underwater-theater","cursor/mechanical-planetarium","cursor/llm-evolution"]'), github.event.pull_request.head.ref) &&
+      contains(fromJSON('["cursor/room-in-computer","cursor/underwater-theater","cursor/mechanical-planetarium"]'), github.event.pull_request.head.ref) &&
       github.event.pull_request.user.login == 'NovenBuilds' }}
     runs-on: macos-latest
     timeout-minutes: 20
