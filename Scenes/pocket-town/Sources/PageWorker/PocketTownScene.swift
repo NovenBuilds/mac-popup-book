@@ -216,13 +216,20 @@ final class PocketTownScene {
 
     private func buildBridge() {
         guard let scene = renderer.scene else { return }
-        let deck = box(width: 1.0, height: 0.04, depth: 0.22, color: color(0.5, 0.37, 0.22))
-        deck.position = SCNVector3(-0.17, 0.06, 0.02)
+        let deck = box(width: 0.58, height: 0.021, depth: 0.20, color: color(0.73, 0.51, 0.30))
+        deck.position = SCNVector3(-0.25, 0.001, 0.05)
         scene.rootNode.addChildNode(deck)
-        for z in [-0.09, 0.13] {
-            let rail = foldedBox(
-                width: 1.0, height: 0.16, depth: 0.035, color: color(0.31, 0.24, 0.17))
-            rail.position = SCNVector3(-0.17, 0.08, z)
+        for z in [-0.045, 0.145] {
+            let rail = SCNNode()
+            rail.position = SCNVector3(-0.25, 0.015, z)
+            let cap = box(width: 0.56, height: 0.014, depth: 0.014, color: color(0.61, 0.40, 0.22))
+            cap.position.y = 0.069
+            rail.addChildNode(cap)
+            for x in [-0.27, -0.12, 0.12, 0.27] {
+                let post = box(width: 0.014, height: 0.078, depth: 0.014, color: color(0.61, 0.40, 0.22))
+                post.position = SCNVector3(x, 0.034, 0)
+                rail.addChildNode(post)
+            }
             bridgeFolds.append(rail)
             scene.rootNode.addChildNode(rail)
         }
@@ -351,6 +358,25 @@ final class PocketTownScene {
         ]
         houseFolds += houses
         for house in houses { scene.rootNode.addChildNode(house) }
+        for (x, z, height) in [
+            (-1.57, 0.67, 0.37), (-1.33, 0.83, 0.25), (1.50, -0.74, 0.44), (1.56, 0.66, 0.32),
+        ] {
+            let tree = SCNNode()
+            tree.position = SCNVector3(x, 0.02, z)
+            let trunk = box(width: 0.032, height: height * 0.65, depth: 0.021, color: color(0.58, 0.37, 0.24))
+            trunk.position.y = height * 0.3
+            tree.addChildNode(trunk)
+            for yaw in [0.0, .pi / 2] {
+                let leaf = SCNNode(geometry: SCNSphere(radius: height * 0.31))
+                leaf.position.y = height * 0.74
+                leaf.scale = SCNVector3(0.72, 1.07, 0.095)
+                leaf.eulerAngles.y = yaw
+                leaf.geometry?.firstMaterial?.diffuse.contents = color(0.37, 0.58, 0.42)
+                tree.addChildNode(leaf)
+            }
+            houseFolds.append(tree)
+            scene.rootNode.addChildNode(tree)
+        }
     }
 
     private func buildCameraAndLights() {
@@ -362,7 +388,7 @@ final class PocketTownScene {
         camera.zFar = 20
         let cameraNode = SCNNode()
         cameraNode.camera = camera
-        cameraNode.position = SCNVector3(0, 4.3, 7.2)
+        cameraNode.position = SCNVector3(1.65, 4.3, 7.2)
         cameraNode.look(at: SCNVector3(0, 0, 0))
         scene.rootNode.addChildNode(cameraNode)
         renderer.pointOfView = cameraNode
@@ -375,7 +401,11 @@ final class PocketTownScene {
         let key = SCNNode()
         key.light = SCNLight()
         key.light?.type = .directional
-        key.light?.intensity = 520
+        key.light?.intensity = 590
+        key.light?.castsShadow = true
+        key.light?.shadowMode = .deferred
+        key.light?.shadowRadius = 4
+        key.light?.shadowColor = color(0.21, 0.16, 0.13).withAlphaComponent(0.30)
         key.eulerAngles = SCNVector3(-0.8, -0.45, 0)
         scene.rootNode.addChildNode(key)
     }
