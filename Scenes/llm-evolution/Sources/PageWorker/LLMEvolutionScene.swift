@@ -53,9 +53,18 @@ final class LLMEvolutionScene {
     private var bridgeNodes: [SCNNode] = []
     private var sourcePlaque = SCNNode()
     private var deskFold = SCNNode()
-    private var shelfFold = SCNNode()
+    private let zh: Bool
+    private var candidateCards: [SCNNode] = []
+    private var trainingPages: [SCNNode] = []
+    private var inputCards: [SCNNode] = []
+    private var demonstrationStart = 0.0
+    private var lastBooth: LLMEvolutionBooth?
+    private var lastExample: LLMEvolutionExample?
+    private var lastNoticeTime = 0.0
+    private var selectionApplies = true
 
-    init() throws {
+    init(zh: Bool) throws {
+        self.zh = zh
         guard let device = MTLCreateSystemDefaultDevice() else { throw PageError.missingResources }
         renderer = SCNRenderer(device: device, options: nil)
         renderer.scene = SCNScene()
@@ -82,9 +91,9 @@ final class LLMEvolutionScene {
 
     func render(
         into texture: MTLTexture, command: MTLCommandBuffer, folding: LLMEvolutionFolding,
-        gameplay: LLMEvolutionGameplay
+        gameplay: LLMEvolutionGameplay, clock: Double
     ) throws {
-        update(folding: folding, gameplay: gameplay)
+        update(folding: folding, gameplay: gameplay, clock: clock)
         let size = CGSize(width: texture.width, height: texture.height)
         if colorTarget?.width != texture.width || colorTarget?.height != texture.height {
             let color = MTLTextureDescriptor.texture2DDescriptor(
@@ -127,8 +136,16 @@ final class LLMEvolutionScene {
         guard let scene = renderer.scene else { return }
         scene.background.contents = NSColor(calibratedRed: 0.9, green: 0.92, blue: 0.94, alpha: 1)
 
-        let desk = box(width: 3.6, height: 0.05, depth: 2.2, color: color(0.72, 0.74, 0.76))
-        desk.position.y = -0.04
+        let cover = box(width: 3.81, height: 0.025, depth: 2.31, color: color(0.25, 0.35, 0.48))
+        cover.position.y = -0.076
+        scene.rootNode.addChildNode(cover)
+        let edges = box(width: 3.74, height: 0.025, depth: 2.24, color: color(0.77, 0.72, 0.61))
+        edges.position.y = -0.052
+        scene.rootNode.addChildNode(edges)
+        let desk = box(width: 3.66, height: 0.034, depth: 2.18, color: color(0.89, 0.84, 0.73))
+        desk.position.y = -0.023
+        let spine = box(width: 0.015, height: 0.004, depth: 2.17, color: color(0.57, 0.47, 0.38))
+        scene.rootNode.addChildNode(spine)
         deskFold = desk
         scene.rootNode.addChildNode(desk)
 
@@ -161,16 +178,16 @@ final class LLMEvolutionScene {
     }
 
     private func buildExampleSelectors(in scene: SCNScene) {
-        let labels = ["续写", "改写", "图文"]
+        let labels = zh ? ["续写", "改写", "图文"] : ["Continue", "Rewrite", "Image"]
         for (index, example) in LLMEvolutionExample.allCases.enumerated() {
             let chip = box(width: 0.34, height: 0.05, depth: 0.2, color: color(0.94, 0.9, 0.82))
-            chip.position = SCNVector3(-1.55, 0.12 + Double(index) * 0.22, 0.42)
+            chip.position = SCNVector3(-1.46, 0.029, 0.25 + Double(index) * 0.25)
             chip.name = LLMEvolutionLayout.HitNames.example(example)
             scene.rootNode.addChildNode(chip)
             exampleChips.append(chip)
 
-            let tag = exampleLabel(labels[index], height: 0.08)
-            tag.position = SCNVector3(0, 0.03, 0)
+            let tag = exampleLabel(labels[index], height: 0.082, width: 0.27)
+            tag.position = SCNVector3(0, 0.027, 0)
             chip.addChildNode(tag)
         }
     }
@@ -188,22 +205,36 @@ final class LLMEvolutionScene {
             let module = boothGeometry(booth)
             module.position.y = 0.08
             root.addChildNode(module)
+            let plaque = box(width: 0.28, height: 0.014, depth: 0.095, color: color(0.91, 0.84, 0.65))
+            plaque.position = SCNVector3(0, 0.016, 0.14)
+            let labels =
+                zh
+                ? ["接续", "注意力", "预训练", "反馈", "图文", "研究"]
+                : ["Continue", "Attention", "Training", "Feedback", "Image", "Research"]
+            let tag = exampleLabel(labels[booth.rawValue], height: 0.043, width: 0.23)
+            tag.position.y = 0.009
+            plaque.addChildNode(tag)
+            root.addChildNode(plaque)
 
             boothRoots[booth] = root
             scene.rootNode.addChildNode(root)
         }
 
-        shelfFold = boothRoots[.pretrain] ?? SCNNode()
     }
 
     private func boothGeometry(_ booth: LLMEvolutionBooth) -> SCNNode {
         switch booth {
         case .nextToken:
             let node = SCNNode()
-            for offset in [-0.08, 0.08] {
-                let card = box(width: 0.1, height: 0.14, depth: 0.02, color: color(0.93, 0.88, 0.78))
+            for (index, offset) in [-0.08, 0.08].enumerated() {
+                let card = box(width: 0.11, height: 0.19, depth: 0.017, color: color(0.92, 0.79, 0.54))
                 card.position.x = offset
+                let glyph = exampleLabel(index == 0 ? "A" : "B", height: 0.078, width: 0.075)
+                glyph.position.z = 0.011
+                glyph.eulerAngles.x = 0
+                card.addChildNode(glyph)
                 node.addChildNode(card)
+                candidateCards.append(card)
             }
             return node
         case .attention:
@@ -216,7 +247,11 @@ final class LLMEvolutionScene {
                 let page = box(width: 0.16, height: 0.02, depth: 0.12, color: color(0.84, 0.86, 0.78))
                 page.position = SCNVector3(0, Double(i) * 0.025, -Double(i) * 0.02)
                 stack.addChildNode(page)
+                trainingPages.append(page)
             }
+            let press = box(width: 0.19, height: 0.021, depth: 0.13, color: color(0.37, 0.58, 0.53))
+            press.position = SCNVector3(0, 0.13, -0.018)
+            stack.addChildNode(press)
             return stack
         case .instructionFeedback:
             let desk = box(width: 0.22, height: 0.08, depth: 0.14, color: color(0.58, 0.45, 0.38))
@@ -232,6 +267,10 @@ final class LLMEvolutionScene {
             strip.position = SCNVector3(0.06, -0.02, 0)
             node.addChildNode(image)
             node.addChildNode(strip)
+            let frame = box(width: 0.16, height: 0.11, depth: 0.009, color: color(0.23, 0.48, 0.50))
+            frame.position = SCNVector3(0, 0.023, -0.056)
+            node.addChildNode(frame)
+            inputCards = [image, strip]
             return node
         case .researchBranch:
             let drawer = box(width: 0.18, height: 0.06, depth: 0.16, color: color(0.46, 0.5, 0.54))
@@ -257,7 +296,10 @@ final class LLMEvolutionScene {
 
     private func buildSourcePlaque(in scene: SCNScene) {
         let plaque = box(width: 0.32, height: 0.06, depth: 0.18, color: color(0.62, 0.56, 0.48))
-        plaque.position = SCNVector3(1.38, 0.06, -0.72)
+        plaque.position = SCNVector3(1.38, 0.026, -0.52)
+        let tag = exampleLabel(zh ? "来源" : "Sources", height: 0.061, width: 0.24)
+        tag.position.y = 0.031
+        plaque.addChildNode(tag)
         sourcePlaque = plaque
         scene.rootNode.addChildNode(plaque)
     }
@@ -266,12 +308,12 @@ final class LLMEvolutionScene {
         guard let scene = renderer.scene else { return }
         let camera = SCNCamera()
         camera.usesOrthographicProjection = true
-        camera.orthographicScale = 2.55
+        camera.orthographicScale = 1.70
         camera.zNear = 0.1
         camera.zFar = 20
         let cameraNode = SCNNode()
         cameraNode.camera = camera
-        cameraNode.position = SCNVector3(0, 2.4, 6.8)
+        cameraNode.position = SCNVector3(0.3, 4.9, 6.8)
         cameraNode.look(at: SCNVector3(0, 0, 0.08))
         scene.rootNode.addChildNode(cameraNode)
         renderer.pointOfView = cameraNode
@@ -289,18 +331,19 @@ final class LLMEvolutionScene {
         scene.rootNode.addChildNode(key)
     }
 
-    private func update(folding: LLMEvolutionFolding, gameplay: LLMEvolutionGameplay) {
+    private func update(folding: LLMEvolutionFolding, gameplay: LLMEvolutionGameplay, clock: Double) {
         for segment in tapeSegments { segment.update(folding.tape) }
         for segment in branchSegments { segment.update(folding.branch) }
 
-        deskFold.opacity = CGFloat(0.4 + 0.6 * folding.desk)
-        setFold(shelfFold, amount: folding.booths)
+        deskFold.opacity = CGFloat(0.88 + 0.12 * folding.desk)
+        updateDemonstration(gameplay, clock: clock)
 
         for booth in LLMEvolutionBooth.allCases {
             guard let root = boothRoots[booth] else { continue }
             let amount = booth == .researchBranch ? folding.branch : folding.booths
             setFold(root, amount: amount)
             let selected = booth == gameplay.selectedBooth
+            root.isHidden = amount < 0.05
             root.opacity = selected ? 1 : CGFloat(0.55 + 0.35 * amount)
             if let pedestal = root.childNodes.first {
                 pedestal.geometry?.firstMaterial?.emission.contents =
@@ -310,6 +353,7 @@ final class LLMEvolutionScene {
         }
 
         for (index, exampleNode) in exampleChips.enumerated() {
+            exampleNode.isHidden = folding.booths < 0.08
             let selected = index == gameplay.selectedExample.rawValue
             exampleNode.geometry?.firstMaterial?.diffuse.contents =
                 selected ? color(0.98, 0.92, 0.72) : color(0.94, 0.9, 0.82)
@@ -329,7 +373,52 @@ final class LLMEvolutionScene {
             node.opacity = CGFloat(folding.bridges)
         }
 
-        sourcePlaque.name = folding.booths >= 0.4 ? LLMEvolutionLayout.HitNames.source : nil
+        sourcePlaque.isHidden = folding.booths < 0.4
+        sourcePlaque.name = LLMEvolutionLayout.HitNames.source
+    }
+
+    private func updateDemonstration(_ gameplay: LLMEvolutionGameplay, clock: Double) {
+        if !gameplay.canInteract { lastBooth = nil }
+        if gameplay.canInteract
+            && (lastBooth != gameplay.selectedBooth || lastExample != gameplay.selectedExample
+                || (gameplay.notice != nil && lastNoticeTime != gameplay.noticeUntil))
+        {
+            demonstrationStart = clock
+            lastBooth = gameplay.selectedBooth
+            lastExample = gameplay.selectedExample
+            lastNoticeTime = gameplay.noticeUntil
+            selectionApplies =
+                LLMEvolutionExhibit.panel(
+                    example: gameplay.selectedExample, booth: gameplay.selectedBooth, zh: zh
+                ).kind != .notApplicable
+        }
+        let elapsed = max(0, clock - demonstrationStart)
+        func travel(_ start: Double, _ end: Double) -> Double {
+            let t = max(0, min(1, (elapsed - start) / (end - start)))
+            return t * t * (3 - 2 * t)
+        }
+        let usable = gameplay.canInteract && selectionApplies
+        for (index, card) in candidateCards.enumerated() {
+            let progress =
+                usable && gameplay.selectedBooth == .nextToken ? travel(0, 0.5 + Double(index) * 0.16) : 0
+            let side = index == 0 ? -1.0 : 1.0
+            card.position = SCNVector3(side * (0.065 + 0.045 * progress), 0.072 + 0.028 * progress, 0)
+            card.eulerAngles.z = side * progress * 0.32
+        }
+        for (index, page) in trainingPages.enumerated() {
+            let progress =
+                usable && gameplay.selectedBooth == .pretrain
+                ? travel(Double(index) * 0.13, Double(index) * 0.13 + 0.58) : 0
+            page.position = SCNVector3(
+                (1 - progress) * (Double(index) - 1.5) * 0.047,
+                Double(index) * 0.025, -Double(index) * 0.02 + (1 - progress) * 0.086)
+        }
+        for (index, card) in inputCards.enumerated() {
+            let progress = usable && gameplay.selectedBooth == .multimodal ? travel(0, 0.82) : 0
+            let side = index == 0 ? -1.0 : 1.0
+            card.position = SCNVector3(
+                side * (0.092 - progress * 0.054), index == 0 ? 0.035 : -0.017, -0.035 * progress)
+        }
     }
 
     private func setFold(_ node: SCNNode, amount: Double) {
@@ -349,7 +438,7 @@ final class LLMEvolutionScene {
         NSColor(calibratedRed: red, green: green, blue: blue, alpha: alpha)
     }
 
-    private func exampleLabel(_ label: String, height: Double) -> SCNNode {
+    private func exampleLabel(_ label: String, height: Double, width: Double) -> SCNNode {
         let text = SCNText(string: label, extrusionDepth: 0)
         text.font = .systemFont(ofSize: 20, weight: .semibold)
         text.flatness = 0.15
@@ -357,7 +446,7 @@ final class LLMEvolutionScene {
         text.firstMaterial?.lightingModel = .constant
         let node = SCNNode(geometry: text)
         let (min, max) = node.boundingBox
-        let scale = height / Double(max.y - min.y)
+        let scale = Swift.min(height / Double(max.y - min.y), width / Double(max.x - min.x))
         node.pivot = SCNMatrix4MakeTranslation((min.x + max.x) / 2, (min.y + max.y) / 2, 0)
         node.scale = SCNVector3(scale, scale, scale)
         node.eulerAngles.x = -.pi / 2
