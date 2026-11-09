@@ -25,8 +25,8 @@ private final class TrackSegment {
     let pivot: SCNNode
 
     func update(_ amount: Double) {
-        let amount = max(0.001, min(1, amount))
-        let extent = length * amount
+        piece.isHidden = amount < 0.004
+        let extent = length * max(0.001, min(1, amount))
         piece.scale.z = extent
         piece.position.z = extent / 2
     }
@@ -244,12 +244,12 @@ final class PocketTownScene {
         scene.rootNode.addChildNode(body)
 
         let canopy = SCNNode()
-        canopy.position = SCNVector3(-1.38, 0.41, -0.12)
+        canopy.position = SCNVector3(0, 0.39, 0.055)
         let roof = box(width: 0.72, height: 0.035, depth: 0.42, color: color(0.58, 0.43, 0.18))
         roof.position.z = 0.2
         canopy.addChildNode(roof)
         canopyFolds.append(canopy)
-        scene.rootNode.addChildNode(canopy)
+        body.addChildNode(canopy)
 
         let stationHit = box(width: 0.62, height: 0.28, depth: 0.55, color: .clear)
         stationHit.name = "hit-station"
@@ -417,7 +417,11 @@ final class PocketTownScene {
         for node in houseFolds { setFold(node, amount: folding.houses) }
         for node in bridgeFolds { setFold(node, amount: folding.bridge) }
         for node in towerFolds { setFold(node, amount: folding.tower) }
-        for node in canopyFolds { setFold(node, amount: folding.stationCanopy) }
+        for node in canopyFolds {
+            let wallRotation = -(1 - folding.houses) * .pi / 2
+            let deployedFlap = -folding.houses * (1 - folding.stationCanopy) * .pi / 2
+            node.eulerAngles.x = CGFloat(deployedFlap - wallRotation)
+        }
 
         let highlight = gameplay.canInteract
         let trackRoute = gameplay.displayRoute
