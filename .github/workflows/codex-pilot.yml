@@ -1,0 +1,135 @@
+name: 独立场景审查与集成
+
+on:
+  pull_request:
+    branches: [integration]
+    types: [opened, reopened, ready_for_review, synchronize]
+
+permissions: {}
+
+concurrency:
+  group: codex-pilot-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PR_NUMBER: ${{ github.event.pull_request.number }}
+  HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+  HEAD_REF: ${{ github.event.pull_request.head.ref }}
+  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+
+jobs:
+  check:
+    if: >-
+      ${{ !github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(fromJSON('["cursor/room-in-computer","cursor/underwater-theater","cursor/mechanical-planetarium","cursor/llm-evolution"]'), github.event.pull_request.head.ref) &&
+      github.event.pull_request.user.login == 'NovenBuilds' }}
+    runs-on: macos-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: 核对提交和场景修改范围
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          scene="${HEAD_REF#cursor/}"
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
+            jq -e --arg head "$HEAD_SHA" --arg base "$BASE_SHA" '
+              .state == "open" and (.draft | not) and
+              .head.sha == $head and .base.sha == $base and
+              .changed_files > 0 and .changed_files <= 100
+            ' >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" |
+            jq -e --arg scene "$scene" '
+              ("Scenes/" + $scene + "/") as $prefix |
+              length > 0 and length <= 100 and
+              any(.[]; .filename | startswith($prefix)) and
+              all(.[]; .status != "renamed" and
+                ((.filename | startswith($prefix)) or
+                  ($scene == "room-in-computer" and .status == "modified" and
+                    .filename == ".github/workflows/codex-pilot.yml")))
+            ' >/dev/null
+          # 确认待审提交包含集成分支当前基线。
+          gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" |
+            jq -e --arg base "$BASE_SHA" '.merge_base_commit.sha == $base' >/dev/null
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: 运行仓库工程检查
+        run: |
+          bash scripts/check.sh
+          scene="${HEAD_REF#cursor/}"
+          python3 scripts/page.py check "$scene"
+          python3 scripts/page.py build "$scene"
+
+  merge:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    permissions:
+      contents: write
+      pull-requests: read
+      statuses: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: 等待同一提交的 Codex 结论
+        run: |
+          set -euo pipefail
+          path="repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER"
+          for attempt in $(seq 1 36); do
+            gh api "$path" |
+              jq -e --arg head "$HEAD_SHA" --arg base "$BASE_SHA" --arg repo "$GITHUB_REPOSITORY" --arg branch "$HEAD_REF" '
+                .state == "open" and (.draft | not) and .head.sha == $head and
+                .base.sha == $base and .base.ref == "integration" and
+                .head.repo.full_name == $repo and .head.ref == $branch
+              ' >/dev/null
+            clean_review=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" |
+              jq -r --arg sha "$HEAD_SHA" '
+                add | map(select(
+                  .user.id == 199175422 and
+                  .performed_via_github_app.slug == "chatgpt-codex-connector" and
+                  (.body | startswith("<!-- codex-pull-request-review-summary -->"))
+                )) | last | select(. != null) |
+                . as $comment |
+                ($comment.body |
+                  capture("(?m)^<!-- codex-review-state:v1 (?<state>[^\\r\\n]+) -->[ \\t]*\\r?$").state |
+                  fromjson | .code_review) |
+                select(.commit_sha == $sha and .status == "completed" and
+                  .has_any_findings == false and .has_unresolved_findings == false) |
+                $comment.html_url
+              ')
+            if [[ -n "$clean_review" ]]; then
+              echo "Codex 审查结论：$clean_review"
+              exit 0
+            fi
+            if [[ "$attempt" -lt 36 ]]; then sleep 20; fi
+          done
+          echo "::error::本次提交没有收到可确认的 Codex 通过结论。请查看 PR 审查意见或 Codex 连接状态。"
+          exit 1
+      - name: 写入合并检查并合入集成分支
+        run: |
+          set -euo pipefail
+          repo="repos/$GITHUB_REPOSITORY"
+          path="$repo/pulls/$PR_NUMBER"
+          gh api "$path" |
+            jq -e --arg head "$HEAD_SHA" --arg base "$BASE_SHA" '
+              .state == "open" and (.draft | not) and .head.sha == $head and
+              .base.sha == $base and .base.ref == "integration"
+            ' >/dev/null
+          gh api "$repo/statuses/$HEAD_SHA" -f state=success -f context=codex-pilot/gate \
+            -f description='工程检查和 Codex 审查均通过' \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >/dev/null
+          # 状态写入后可能短暂尚未反映到分支规则，按同一提交编号有限重试。
+          for attempt in 1 2 3 4; do
+            if gh api -X PUT "$path/merge" -f sha="$HEAD_SHA" -f merge_method=squash |
+              jq -e '.merged == true'; then
+              exit 0
+            fi
+            if [[ "$attempt" -lt 4 ]]; then sleep 5; fi
+          done
+          exit 1

@@ -7,7 +7,7 @@ import SwiftUI
     @StateObject private var model = HostModel()
     @NSApplicationDelegateAdaptor(BookDelegate.self) var delegate
     var body: some Scene {
-        Window(L10n.text("林间小屋"), id: "book") {
+        Window(L10n.text("开合之间"), id: "book") {
             BookView(model: model).onAppear { delegate.model = model }.onDisappear { model.stop() }
         }.defaultSize(width: 1440, height: 960).windowStyle(.hiddenTitleBar).commands {
             CommandMenu(L10n.text("互动")) {
@@ -115,21 +115,43 @@ struct BookView: View {
         }.foregroundStyle(Color(red: 0.25, green: 0.34, blue: 0.26)).frame(minWidth: 880, minHeight: 680)
             .sheet(isPresented: $model.directory) { directory }
     }
+    private var pageActionButtons: some View {
+        ForEach(model.state.output.actions, id: \.id) { action in
+            Button {
+                model.coordinator.handle(.action(action.id))
+            } label: {
+                Text(action.title).fixedSize()
+            }.disabled(!action.enabled || !model.state.active || model.state.phase != .idle || model.failed)
+        }
+    }
+
+    @ViewBuilder private var bookActionButtons: some View {
+        Button(L10n.text("上一页")) { model.coordinator.move(-1) }.disabled(model.state.phase != .idle)
+        Button(L10n.text("下一页")) { model.coordinator.move(1) }.disabled(model.state.phase != .idle)
+        Button(model.coordinator.soundEnabled ? L10n.text("声音已开") : L10n.text("声音已关")) {
+            model.coordinator.setSound(!model.coordinator.soundEnabled)
+            model.refresh()
+        }
+        Button(L10n.text("收起")) { model.controlsVisible = false }
+    }
+
     private var controls: some View {
         VStack(spacing: 12) {
-            HStack {
-                ForEach(model.state.output.actions, id: \.id) { action in
-                    Button(action.title) { model.coordinator.handle(.action(action.id)) }.disabled(
-                        !action.enabled || !model.state.active || model.state.phase != .idle || model.failed)
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    pageActionButtons
+                    Spacer(minLength: 12)
+                    bookActionButtons
                 }
-                Spacer()
-                Button(L10n.text("上一页")) { model.coordinator.move(-1) }.disabled(model.state.phase != .idle)
-                Button(L10n.text("下一页")) { model.coordinator.move(1) }.disabled(model.state.phase != .idle)
-                Button(model.coordinator.soundEnabled ? L10n.text("声音已开") : L10n.text("声音已关")) {
-                    model.coordinator.setSound(!model.coordinator.soundEnabled)
-                    model.refresh()
+                VStack(alignment: .leading, spacing: 8) {
+                    ScrollView(.horizontal) {
+                        HStack { pageActionButtons }
+                    }.scrollIndicators(.hidden)
+                    HStack {
+                        Spacer()
+                        bookActionButtons
+                    }
                 }
-                Button(L10n.text("收起")) { model.controlsVisible = false }
             }.buttonStyle(.bordered)
             HStack {
                 Text(L10n.text("展开"))

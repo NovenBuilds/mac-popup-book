@@ -1,0 +1,20 @@
+{
+  "id": "room-in-computer",
+  "order": 0,
+  "names": {
+    "en": "Room in the Computer",
+    "zh-Hans": "住在电脑里的小屋"
+  },
+  "contractVersion": 1,
+  "service": "local.ssr.forestbook.page.room-in-computer",
+  "product": "StandaloneWorker",
+  "audio": [
+    {
+      "id": "room.strip",
+      "path": "Audio/time-strip.wav",
+      "volume": 0.28,
+      "loops": false,
+      "autostart": false
+    }
+  ]
+}

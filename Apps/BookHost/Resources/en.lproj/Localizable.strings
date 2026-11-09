@@ -9,8 +9,8 @@
 "打开声音" = "Unmute";
 "收起" = "Hide controls";
 "显示控制条" = "Show controls";
-"林间小屋" = "Forest Cabin";
-"林间小屋暂时无法打开" = "Forest Cabin could not open";
+"开合之间" = "Between the Folds";
+"开合之间暂时无法打开" = "Between the Folds could not open";
 "校准" = "Calibrate";
 "纸雕森林" = "Paper forest";
 "纸雕森林。展开进度 %@%。角色状态：%@。" = "Paper forest. %@%% open. Character: %@.";

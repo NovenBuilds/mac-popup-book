@@ -1,0 +1,20 @@
+{
+  "id": "llm-evolution",
+  "order": 0,
+  "names": {
+    "en": "How Text Grows Into Capability",
+    "zh-Hans": "文字如何长出能力"
+  },
+  "contractVersion": 1,
+  "service": "local.ssr.forestbook.page.llm-evolution",
+  "product": "StandaloneWorker",
+  "audio": [
+    {
+      "id": "exhibit.paper",
+      "path": "Audio/paper-cue.wav",
+      "volume": 0.27,
+      "loops": false,
+      "autostart": false
+    }
+  ]
+}

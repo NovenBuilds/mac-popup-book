@@ -14,7 +14,7 @@ import PopupBookRuntime
     private var lastRefresh = 0.0
     var coordinator: BookCoordinator { composition.coordinator }
     var currentTitle: String {
-        composition.registry.pages.first(where: { $0.id == state.current })?.title() ?? L10n.text("林间小屋")
+        composition.registry.pages.first(where: { $0.id == state.current })?.title() ?? L10n.text("开合之间")
     }
     var failed: Bool {
         if let id = state.current, case .failed = state.pageStates[id] { return true }

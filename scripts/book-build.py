@@ -36,7 +36,7 @@ def build(args):
     host_product = 'BookIntegrationCheck' if args.background_check else 'ForestBook'
     command(['swift', 'build', '-c', 'release', '--product', host_product])
     bin = binary_path(ROOT)
-    name = ('后台验收-' if args.background_check else '场景预览-') + (ids[0] if len(ids) == 1 else 'integration') + '.app' if args.preview else '林间小屋.app'
+    name = ('后台验收-' if args.background_check else '场景预览-') + (ids[0] if len(ids) == 1 else 'integration') + '.app' if args.preview else '开合之间.app'
     target = ROOT / 'build' / name
     stage = ROOT / 'build' / ('book-stage-' + uuid.uuid4().hex + '.app')
     contents = stage / 'Contents'
@@ -83,7 +83,7 @@ def build(args):
         command(['codesign', '--force', '--sign', '-', str(service)])
     command(['codesign', '--force', '--sign', '-', str(stage)])
     command(['codesign', '--verify', '--deep', '--strict', str(stage)])
-    baseline = ROOT / 'build/baseline-林间小屋.app'
+    baseline = ROOT / 'build/baseline-开合之间.app'
     if target.exists():
         if not args.preview and (not baseline.exists()):
             shutil.copytree(target, baseline)

@@ -30,6 +30,7 @@ import PopupBookCore
     private var inputGeneration = 0
     private var lastReading = 0.0
     private var inputTimestamp = 0.0
+    private var activeAudioPage: String?
     public init(
         registry: PageRegistry, source: any AngleSource, clock: any FrameClock, settings: any SettingsStore,
         wallClock: (any WallClock)? = nil, factory: @escaping (PageDescriptor) -> any PageProcessPort
@@ -53,9 +54,6 @@ import PopupBookCore
                 started[id] = clock.now
                 lastFrames[id] = clock.now
             }
-            if let id = state.current, state.phase == .idle, !isFailed(id) {
-                onScopeActive?(id, soundEnabled)
-            }
             configureInput()
             clock.start { [weak self] time in self?.tick(time) }
             if state.current == nil, let first = registry.pages.first {
@@ -72,9 +70,9 @@ import PopupBookCore
                 if state.pageStates[id] == .running || state.pageStates[id] == .ready {
                     state.pageStates[id] = .paused
                 }
-                onScopeActive?(id, false)
             }
         }
+        updateAudioScope()
         onChange?()
     }
     public func setFollowing(_ value: Bool) {
@@ -91,7 +89,7 @@ import PopupBookCore
     public func setSound(_ value: Bool) {
         state.soundEnabled = value
         settings.soundEnabled = value
-        if let id = state.current { onScopeActive?(id, value && state.active && state.phase == .idle) }
+        updateAudioScope()
         onChange?()
     }
     @discardableResult public func calibrate() -> Bool {
@@ -108,6 +106,7 @@ import PopupBookCore
         if state.current == id, case .failed = state.pageStates[id] {} else if state.current == id { return }
         state.target = id
         state.phase = .preparing
+        updateAudioScope()
         phaseTime = 0
         epochs[id, default: 0] += 1
         let token = epochs[id]!
@@ -189,7 +188,17 @@ import PopupBookCore
         state.current = id
         lastFrames[id] = clock.now
         onPageSelected?(id)
-        onScopeActive?(id, soundEnabled && state.active && state.phase == .idle)
+    }
+    private func updateAudioScope() {
+        let current = state.current
+        let threshold = activeAudioPage == nil ? 0.18 : 0.12
+        let next =
+            soundEnabled && state.active && state.phase == .idle
+                && state.progress >= threshold && !isFailed(current) ? current : nil
+        guard next != activeAudioPage else { return }
+        if let activeAudioPage { onScopeActive?(activeAudioPage, false) }
+        activeAudioPage = next
+        if let next { onScopeActive?(next, true) }
     }
     private func isFailed(_ id: String?) -> Bool {
         guard let id else { return true }
@@ -201,7 +210,7 @@ import PopupBookCore
         ports[id]?.terminate()
         ports[id] = nil
         state.pageStates[id] = .failed(error)
-        onScopeActive?(id, false)
+        updateAudioScope()
         onScopeEnded?(id)
         started[id] = nil
         lastFrames[id] = nil
@@ -211,6 +220,7 @@ import PopupBookCore
             state.phase = .idle
             phaseTime = 0
         }
+        updateAudioScope()
         onChange?()
     }
     private func tick(_ time: Double) {
@@ -243,7 +253,6 @@ import PopupBookCore
                 phaseTime += dt
                 if phaseTime >= 0.25 {
                     if let old = state.current {
-                        onScopeActive?(old, false)
                         ports[old]?.stop()
                         ports[old] = nil
                         epochs[old, default: 0] += 1
@@ -269,11 +278,11 @@ import PopupBookCore
                     state.phase = .idle
                     state.target = nil
                     state.turnProgress = 0
-                    if let id = state.current { onScopeActive?(id, soundEnabled) }
                 }
             default: break
             }
         }
+        updateAudioScope()
         if let id = state.current, !isFailed(id), state.phase != .turning {
             var frame = context
             if state.phase == .collapsing {
