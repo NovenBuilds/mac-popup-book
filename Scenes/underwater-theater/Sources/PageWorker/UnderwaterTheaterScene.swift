@@ -273,9 +273,19 @@ final class UnderwaterTheaterScene {
     }
 
     private func paperCut(_ path: NSBezierPath, thickness: Double, tint: NSColor) -> SCNNode {
-        let geometry = SCNShape(path: path, extrusionDepth: thickness)
+        // SceneKit simplifies paths in the source coordinate space. Tessellate
+        // at drawing scale and shrink the result back into the scene.
+        let scale = 500.0
+        let drawing = NSBezierPath()
+        drawing.append(path)
+        drawing.transform(using: AffineTransform(scale: scale))
+        let geometry = SCNShape(path: drawing, extrusionDepth: thickness * scale)
         geometry.firstMaterial?.diffuse.contents = tint
-        return SCNNode(geometry: geometry)
+        let piece = SCNNode(geometry: geometry)
+        piece.scale = SCNVector3(1 / scale, 1 / scale, 1 / scale)
+        let root = SCNNode()
+        root.addChildNode(piece)
+        return root
     }
 
     private func buildFlowVisuals(into scene: SCNScene) {
