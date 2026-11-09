@@ -20,6 +20,8 @@ public struct MechanicalPlanetariumMechanism: Equatable, Sendable {
 
     public var moonElongation: Double { turns * Self.moonCyclePerTurn * 2 * .pi }
 
+    public var illuminatedFraction: Double { (1 - cos(moonElongation)) / 2 }
+
     public var earthOrbitAngle: Double { turns * Self.earthOrbitPerTurn * 2 * .pi }
 
     public var earthSpinAngle: Double { turns * Self.earthSpinPerTurn * 2 * .pi }

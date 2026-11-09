@@ -19,7 +19,11 @@ final class MechanicalPlanetariumScene {
     private var moonPivot = SCNNode()
     private var moonSphere = SCNNode()
     private var starNodes: [SCNNode] = []
-    private var skyCard = SCNNode()
+    private let skyCard = SCNNode()
+    private let phaseDial = SCNNode()
+    private let phaseLight = SCNNode()
+    private var phaseBucket = -1
+    private var crossbar = SCNNode()
     private var sunLight = SCNNode()
 
     private static let externalBackground = (red: 0.86, green: 0.89, blue: 0.93)
@@ -115,14 +119,17 @@ final class MechanicalPlanetariumScene {
         buildBodies(into: scene)
         buildCrank(into: scene)
         buildControls(into: scene)
+        buildPhaseDial(into: scene)
         buildCameraAndLights(into: scene)
     }
 
     private func buildSkyCard(into scene: SCNScene) {
         let tint = Self.skyCardColor
-        skyCard = box(
-            width: 3.55, height: 1.5, depth: 0.02, color: color(tint.red, tint.green, tint.blue))
-        skyCard.position = SCNVector3(0, 0.44, -0.62)
+        let card = box(
+            width: 3.55, height: 1.24, depth: 0.02, color: color(tint.red, tint.green, tint.blue))
+        card.position.y = 0.62
+        skyCard.position = SCNVector3(0, 0.012, -0.69)
+        skyCard.addChildNode(card)
         scene.rootNode.addChildNode(skyCard)
     }
 
@@ -158,7 +165,7 @@ final class MechanicalPlanetariumScene {
             bracketFolds.append(bracket)
             scene.rootNode.addChildNode(bracket)
         }
-        let crossbar = foldedBar(width: 2.7, color: color(0.68, 0.53, 0.26))
+        crossbar = foldedBar(width: 2.7, color: color(0.68, 0.53, 0.26))
         crossbar.position = SCNVector3(0, 0.64, 0)
         bracketFolds.append(crossbar)
         scene.rootNode.addChildNode(crossbar)
@@ -264,15 +271,75 @@ final class MechanicalPlanetariumScene {
         return base
     }
 
+    private func buildPhaseDial(into scene: SCNScene) {
+        phaseDial.position = SCNVector3(-1.02, 0.36, 0.63)
+        let hinge = box(width: 0.45, height: 0.035, depth: 0.12, color: color(0.72, 0.54, 0.29))
+        hinge.position = SCNVector3(-1.02, 0.023, 0.63)
+        scene.rootNode.addChildNode(hinge)
+        let support = box(width: 0.038, height: 0.35, depth: 0.028, color: color(0.78, 0.58, 0.31))
+        support.position.y = -0.17
+        phaseDial.addChildNode(support)
+        let disk = SCNCylinder(radius: 0.234, height: 0.021)
+        disk.firstMaterial?.lightingModel = .constant
+        disk.firstMaterial?.diffuse.contents = color(0.73, 0.54, 0.29)
+        let rim = SCNNode(geometry: disk)
+        rim.eulerAngles.x = .pi / 2
+        phaseDial.addChildNode(rim)
+        let shade = SCNCylinder(radius: 0.195, height: 0.013)
+        shade.firstMaterial?.lightingModel = .constant
+        shade.firstMaterial?.diffuse.contents = color(0.105, 0.13, 0.20)
+        let face = SCNNode(geometry: shade)
+        face.position.z = 0.014
+        face.eulerAngles.x = .pi / 2
+        phaseDial.addChildNode(face)
+        phaseLight.position.z = 0.025
+        phaseDial.addChildNode(phaseLight)
+        scene.rootNode.addChildNode(phaseDial)
+    }
+
+    private func updatePhaseDial(_ mechanism: MechanicalPlanetariumMechanism, folding: Double) {
+        phaseDial.isHidden = folding < 0.13
+        phaseDial.position.y = CGFloat(0.035 + 0.325 * folding)
+        phaseDial.eulerAngles.x = CGFloat(0.25 - (1 - folding) * .pi / 2)
+        let cycle = mechanism.moonElongation.truncatingRemainder(dividingBy: 2 * .pi)
+        let angle = cycle < 0 ? cycle + 2 * .pi : cycle
+        let bucket = Int((angle / (2 * .pi) * 96).rounded()) % 96
+        guard bucket != phaseBucket else { return }
+        phaseBucket = bucket
+        let phase = Double(bucket) / 96 * 2 * .pi
+        phaseLight.isHidden = bucket == 0
+        guard bucket != 0 else { return }
+
+        // 在地球看到的月盘，右亮为盈、左亮为亏。终止线为随相位变化的半椭圆。
+        let outline = NSBezierPath()
+        let radius = 0.195
+        let side = bucket <= 48 ? 1.0 : -1.0
+        outline.move(to: CGPoint(x: 0, y: radius))
+        for i in 1...32 {
+            let theta = Double(i) / 32 * .pi
+            outline.line(to: CGPoint(x: side * radius * sin(theta), y: radius * cos(theta)))
+        }
+        for i in 1...32 {
+            let theta = Double(i) / 32 * .pi
+            outline.line(to: CGPoint(x: side * radius * sin(theta) * cos(phase), y: -radius * cos(theta)))
+        }
+        outline.close()
+        let face = SCNShape(path: outline, extrusionDepth: 0)
+        face.firstMaterial?.lightingModel = .constant
+        face.firstMaterial?.diffuse.contents = color(0.97, 0.89, 0.69)
+        face.firstMaterial?.isDoubleSided = true
+        phaseLight.geometry = face
+    }
+
     private func buildCameraAndLights(into scene: SCNScene) {
         let camera = SCNCamera()
         camera.usesOrthographicProjection = true
-        camera.orthographicScale = 2.35
+        camera.orthographicScale = 1.74
         camera.zNear = 0.05
         camera.zFar = 20
         let cameraNode = SCNNode()
         cameraNode.camera = camera
-        cameraNode.position = SCNVector3(0, 2.35, 7.4)
+        cameraNode.position = SCNVector3(0, 3.35, 7.4)
         cameraNode.look(at: SCNVector3(0, 0.3, 0))
         scene.rootNode.addChildNode(cameraNode)
         renderer.pointOfView = cameraNode
@@ -295,19 +362,19 @@ final class MechanicalPlanetariumScene {
     private func update(folding: MechanicalPlanetariumFolding, gameplay: MechanicalPlanetariumGameplay) {
         let mechanism = gameplay.mechanism
         for node in bracketFolds { setFold(node, amount: folding.brackets) }
+        crossbar.position.y = CGFloat(0.02 + 0.62 * folding.brackets)
+        updatePhaseDial(mechanism, folding: folding.bodies)
         for node in orbitFolds {
             setFold(node, amount: folding.orbits)
             node.isHidden = folding.orbits < 0.08
         }
         for node in bodyFolds {
-            let amount = node === crankPivot ? folding.crank : folding.bodies
             if node === crankPivot {
                 node.isHidden = folding.crank < 0.12
             } else {
                 setFold(node, amount: folding.bodies)
                 node.isHidden = folding.bodies < 0.12
             }
-            _ = amount
         }
 
         setFold(skyCard, amount: folding.backdrop)

@@ -24,6 +24,9 @@ public enum MechanicalPlanetariumAction {
     public static let stepBack = "step-back"
     public static let stepForward = "step-forward"
     public static let pauseToggle = "pause-toggle"
+    public static let newMoon = "observe-new"
+    public static let firstQuarter = "observe-quarter"
+    public static let fullMoon = "observe-full"
 }
 
 public struct MechanicalPlanetariumGameplay: Equatable, Sendable {
@@ -65,6 +68,12 @@ public struct MechanicalPlanetariumGameplay: Equatable, Sendable {
             handleTap(.stepForward, folding: folding, now: now)
         case MechanicalPlanetariumAction.pauseToggle:
             handleTap(.pauseToggle, folding: folding, now: now)
+        case MechanicalPlanetariumAction.newMoon:
+            handleTap(.observeNewMoon, folding: folding, now: now)
+        case MechanicalPlanetariumAction.firstQuarter:
+            handleTap(.observeFirstQuarter, folding: folding, now: now)
+        case MechanicalPlanetariumAction.fullMoon:
+            handleTap(.observeFullMoon, folding: folding, now: now)
         default:
             break
         }
@@ -190,6 +199,9 @@ public struct MechanicalPlanetariumGameplay: Equatable, Sendable {
             (MechanicalPlanetariumAction.stepBack, zh ? "后退" : "Step back", drive),
             (MechanicalPlanetariumAction.stepForward, zh ? "前进" : "Step forward", drive),
             (MechanicalPlanetariumAction.pauseToggle, pauseTitle, canInteract),
+            (MechanicalPlanetariumAction.newMoon, zh ? "新月" : "New moon", canInteract),
+            (MechanicalPlanetariumAction.firstQuarter, zh ? "上弦" : "First quarter", canInteract),
+            (MechanicalPlanetariumAction.fullMoon, zh ? "满月" : "Full moon", canInteract),
         ]
     }
 

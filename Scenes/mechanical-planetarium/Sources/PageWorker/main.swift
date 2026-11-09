@@ -9,6 +9,10 @@ import PopupBookCore
     private var gameplay = MechanicalPlanetariumGameplay()
     private var context = WorldContext(progress: 0, clock: 0, deltaTime: 0, stableDuration: 0)
     private var crankDragActive = false
+    private var canSave = true
+    private var lastClickTime = -1.0
+    private var lastClickTurns = 0.0
+    private var pendingClick = false
 
     init() throws {
         scene = try MechanicalPlanetariumScene()
@@ -16,9 +20,20 @@ import PopupBookCore
 
     func prepare(_ startup: PageStartup) throws {
         scene.setViewport(CGSize(width: startup.width, height: startup.height))
+        let restored = MechanicalPlanetariumSave.restore(state: startup.state, backup: startup.backup)
+        gameplay = restored.gameplay
+        canSave = restored.canSave
+        lastClickTurns = gameplay.mechanism.turns
     }
 
     func handle(_ input: PageInput) {
+        let wasPaused = gameplay.isPaused
+        defer {
+            if gameplay.isPaused != wasPaused || abs(gameplay.mechanism.turns - lastClickTurns) >= 0.075 {
+                pendingClick = true
+                lastClickTurns = gameplay.mechanism.turns
+            }
+        }
         switch input {
         case .pointer(let event):
             guard event.valid else { return }
@@ -63,17 +78,26 @@ import PopupBookCore
         let zh = isChinese
         var caption = gameplay.caption(zh: zh) + " " + gameplay.disclaimer(zh: zh)
         if let observation = gameplay.observationCaption(zh: zh) {
-            caption += zh ? " \(observation)" : " \(observation)"
+            caption += " \(observation)"
         }
         let actions = gameplay.presentationActions(zh: zh).map {
             PageAction($0.id, title: $0.title, enabled: $0.enabled)
         }
+        let shouldClick = pendingClick && gameplay.canInteract && context.clock - lastClickTime > 0.16
+        pendingClick = false
+        if shouldClick { lastClickTime = context.clock }
         var presentation = PagePresentation(
             caption: caption,
             accessibility: message("机械天文馆", "Mechanical Planetarium"),
-            actions: actions)
+            actions: actions,
+            sounds: shouldClick ? [PageSound("planet.detent", .play)] : [],
+            checkpoint: savedState(),
+            canSave: canSave)
         if let notice = gameplay.notice {
             presentation.notice = noticeText(notice, zh: zh)
+        } else if !canSave {
+            presentation.notice = message(
+                "当前存档已保护，仍可操作机关。", "Saved position is protected. You can still use the mechanism.")
         }
         return presentation
     }
@@ -87,18 +111,16 @@ import PopupBookCore
     }
 
     func pause() -> Data? {
-        clearPointerInteraction()
-        return nil
-    }
-
-    func finish() -> Data? {
-        clearPointerInteraction()
-        return nil
-    }
-
-    private func clearPointerInteraction() {
         gameplay.cancelInteraction()
         crankDragActive = false
+        pendingClick = false
+        return savedState()
+    }
+
+    func finish() -> Data? { pause() }
+
+    private func savedState() -> Data? {
+        canSave ? MechanicalPlanetariumSave(gameplay: gameplay).encoded() : nil
     }
 
     private var isChinese: Bool {
