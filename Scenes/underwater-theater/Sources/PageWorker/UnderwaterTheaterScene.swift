@@ -258,7 +258,8 @@ final class UnderwaterTheaterScene {
     }
 
     private func paperCut(_ path: NSBezierPath, thickness: Double, tint: NSColor) -> SCNNode {
-        let geometry = SCNShape(path: path, extrusionDepth: thickness)
+        path.flatness = 0.001
+        let geometry = SCNShape(path: path.flattened, extrusionDepth: thickness)
         geometry.firstMaterial?.diffuse.contents = tint
         return SCNNode(geometry: geometry)
     }

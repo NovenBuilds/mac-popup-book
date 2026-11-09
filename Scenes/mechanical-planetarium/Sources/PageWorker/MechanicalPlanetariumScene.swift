@@ -24,10 +24,13 @@ final class MechanicalPlanetariumScene {
     private let phaseLight = SCNNode()
     private var phaseBucket = -1
     private var crossbar = SCNNode()
+    private var controlButtons: [SCNNode] = []
+    private var pauseMark = SCNNode()
+    private var resumeMark = SCNNode()
     private var sunLight = SCNNode()
 
     private static let externalBackground = (red: 0.86, green: 0.89, blue: 0.93)
-    private static let skyCardColor = (red: 0.06, green: 0.08, blue: 0.18)
+    private static let skyCardColor = (red: 0.10, green: 0.13, blue: 0.25)
 
     init() throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw PageError.missingResources }
@@ -239,36 +242,44 @@ final class MechanicalPlanetariumScene {
     }
 
     private func buildControls(into scene: SCNScene) {
-        let back = controlHit(
-            name: "hit-step-back", position: SCNVector3(-1.2, 0.12, 0.82), tint: color(0.42, 0.34, 0.22))
-        let forward = controlHit(
-            name: "hit-step-forward", position: SCNVector3(-0.62, 0.12, 0.82), tint: color(0.42, 0.34, 0.22))
-        let pause = controlHit(
-            name: "hit-pause", position: SCNVector3(-0.91, 0.12, 0.82), tint: color(0.5, 0.38, 0.2))
-        scene.rootNode.addChildNode(back)
-        scene.rootNode.addChildNode(forward)
-        scene.rootNode.addChildNode(pause)
-
-        let markers: [(String, SCNVector3)] = [
-            ("hit-observe-0", SCNVector3(0.95, 0.14, 0.82)),
-            ("hit-observe-1", SCNVector3(1.28, 0.14, 0.82)),
-            ("hit-observe-2", SCNVector3(1.61, 0.14, 0.82)),
+        let entries: [(String, String, Double)] = [
+            ("hit-step-back", "‹", -1.30), ("hit-pause", "Ⅱ", -1.00), ("hit-step-forward", "›", -0.70),
+            ("hit-observe-0", "○", 0.94), ("hit-observe-1", "◐", 1.24), ("hit-observe-2", "●", 1.54),
         ]
-        for (name, position) in markers {
-            let marker = controlHit(name: name, position: position, tint: color(0.55, 0.42, 0.2))
-            scene.rootNode.addChildNode(marker)
+        for (name, glyph, x) in entries {
+            let button = box(width: 0.25, height: 0.035, depth: 0.19, color: color(0.74, 0.52, 0.26))
+            button.name = name
+            button.position = SCNVector3(x, 0.022, 0.87)
+            let inset = box(width: 0.218, height: 0.008, depth: 0.157, color: color(0.86, 0.69, 0.43))
+            inset.position.y = 0.019
+            inset.name = name
+            button.addChildNode(inset)
+            let mark = controlGlyph(glyph)
+            button.addChildNode(mark)
+            if name == "hit-pause" {
+                pauseMark = mark
+                resumeMark = controlGlyph("›")
+                button.addChildNode(resumeMark)
+            }
+            controlButtons.append(button)
+            scene.rootNode.addChildNode(button)
         }
     }
 
-    private func controlHit(name: String, position: SCNVector3, tint: NSColor) -> SCNNode {
-        let base = box(width: 0.26, height: 0.06, depth: 0.2, color: tint)
-        base.position = position
-        let hit = box(width: 0.3, height: 0.16, depth: 0.24, color: .clear)
-        hit.opacity = 0.001
-        hit.name = name
-        hit.position = SCNVector3(0, 0.06, 0)
-        base.addChildNode(hit)
-        return base
+    private func controlGlyph(_ glyph: String) -> SCNNode {
+        let text = SCNText(string: glyph, extrusionDepth: 0)
+        text.font = .systemFont(ofSize: 20, weight: .semibold)
+        text.flatness = 0.1
+        text.firstMaterial?.diffuse.contents = color(0.16, 0.20, 0.27)
+        text.firstMaterial?.lightingModel = .constant
+        let node = SCNNode(geometry: text)
+        let (min, max) = node.boundingBox
+        let scale = 0.076 / Swift.max(1, max.y - min.y)
+        node.pivot = SCNMatrix4MakeTranslation((min.x + max.x) / 2, (min.y + max.y) / 2, 0)
+        node.scale = SCNVector3(scale, scale, scale)
+        node.position.y = 0.025
+        node.eulerAngles.x = -.pi / 2
+        return node
     }
 
     private func buildPhaseDial(into scene: SCNScene) {
@@ -347,7 +358,7 @@ final class MechanicalPlanetariumScene {
         let ambient = SCNNode()
         ambient.light = SCNLight()
         ambient.light?.type = .ambient
-        ambient.light?.intensity = 180
+        ambient.light?.intensity = 235
         ambient.light?.color = color(0.5, 0.58, 0.85)
         scene.rootNode.addChildNode(ambient)
 
@@ -364,6 +375,9 @@ final class MechanicalPlanetariumScene {
         for node in bracketFolds { setFold(node, amount: folding.brackets) }
         crossbar.position.y = CGFloat(0.02 + 0.62 * folding.brackets)
         updatePhaseDial(mechanism, folding: folding.bodies)
+        for button in controlButtons { button.isHidden = !gameplay.canInteract }
+        pauseMark.isHidden = gameplay.isPaused
+        resumeMark.isHidden = !gameplay.isPaused
         for node in orbitFolds {
             setFold(node, amount: folding.orbits)
             node.isHidden = folding.orbits < 0.08
