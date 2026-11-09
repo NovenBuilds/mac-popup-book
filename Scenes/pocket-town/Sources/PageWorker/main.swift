@@ -7,6 +7,7 @@ import PopupBookCore
 @MainActor final class PocketTownPage: RenderedBookPage {
     private let scene: PocketTownScene
     private var gameplay = PocketTownGameplay()
+    private var pendingSounds: [PageSound] = []
     private var context = WorldContext(progress: 0, clock: 0, deltaTime: 0, stableDuration: 0)
 
     init() throws {
@@ -18,22 +19,53 @@ import PopupBookCore
     }
 
     func handle(_ input: PageInput) {
-        guard case .pointer(let event) = input, event.kind == .down, event.valid else { return }
-        guard let target = scene.pickTarget(x: event.x, y: event.y) else { return }
+        let target: PocketTownTapTarget?
+        switch input {
+        case .pointer(let event) where event.kind == .down && event.valid:
+            target = scene.pickTarget(x: event.x, y: event.y)
+        case .action("town-switch"):
+            target = .switchRail
+        case .action("town-depart"):
+            target = .station
+        default:
+            return
+        }
+        guard let target else { return }
+        let oldRoute = gameplay.selectedRoute
+        let wasRunning = gameplay.trainIsRunning
         let folding = PocketTownFolding(progress: context.progress)
         gameplay.handleTap(target, folding: folding, now: context.clock)
+        if oldRoute != gameplay.selectedRoute { pendingSounds.append(PageSound("town.switch", .play)) }
+        if !wasRunning && gameplay.trainIsRunning { pendingSounds.append(PageSound("town.depart", .play)) }
     }
 
     func advance(_ context: WorldContext) throws -> PagePresentation {
         self.context = context
         let folding = PocketTownFolding(progress: context.progress)
+        let wasRunning = gameplay.trainIsRunning
         gameplay.advance(
             bookProgress: context.progress, clock: context.clock, deltaTime: context.deltaTime,
             folding: folding)
+        if wasRunning && !gameplay.trainIsRunning
+            && context.progress >= PocketTownGameplay.foldedResetProgress
+        {
+            pendingSounds.append(PageSound("town.arrive", .play))
+        }
         let zh = isChinese
+        let sounds = context.progress >= PocketTownGameplay.foldedResetProgress ? pendingSounds : []
+        pendingSounds.removeAll(keepingCapacity: true)
         var presentation = PagePresentation(
             caption: gameplay.caption(zh: zh),
-            accessibility: message("口袋小镇", "Pocket Town"))
+            accessibility: message("口袋小镇", "Pocket Town"),
+            actions: [
+                PageAction(
+                    "town-switch", title: message("切换道岔", "Switch track"), enabled: gameplay.canInteract,
+                    shortcut: "s"),
+                PageAction(
+                    "town-depart", title: message("发车", "Depart"),
+                    enabled: gameplay.canInteract && !gameplay.trainIsRunning, shortcut: "d"),
+            ],
+            sounds: sounds)
         if let notice = gameplay.notice {
             presentation.notice = noticeText(notice, zh: zh)
         }
@@ -48,8 +80,12 @@ import PopupBookCore
             folding: PocketTownFolding(progress: context.progress), gameplay: gameplay)
     }
 
-    func pause() -> Data? { nil }
-    func finish() -> Data? { nil }
+    func pause() -> Data? {
+        pendingSounds.removeAll(keepingCapacity: true)
+        return nil
+    }
+
+    func finish() -> Data? { pause() }
 
     private var isChinese: Bool {
         Bundle.preferredLocalizations(from: ["en", "zh-Hans"], forPreferences: Locale.preferredLanguages)

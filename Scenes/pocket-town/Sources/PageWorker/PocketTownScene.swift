@@ -43,7 +43,11 @@ final class PocketTownScene {
     private var spineSegments: [TrackSegment] = []
     private var riversideSegments: [TrackSegment] = []
     private var clockSegments: [TrackSegment] = []
-    private var trainNode = SCNNode()
+    private let trainNode = SCNNode()
+    private var wheels: [SCNNode] = []
+    private let clockHand = SCNNode()
+    private let riverFlag = SCNNode()
+    private let signalLamp = SCNNode()
     private var switchNode = SCNNode()
     private var switchBlade = SCNNode()
     private var viewport = CGSize(width: 1, height: 1)
@@ -121,7 +125,13 @@ final class PocketTownScene {
         guard let scene = renderer.scene else { return }
         scene.background.contents = NSColor(calibratedRed: 0.93, green: 0.89, blue: 0.8, alpha: 1)
 
-        let ground = box(width: 3.8, height: 0.04, depth: 2.4, color: color(0.72, 0.69, 0.6))
+        let cover = box(width: 3.93, height: 0.035, depth: 2.49, color: color(0.27, 0.39, 0.36))
+        cover.position.y = -0.079
+        scene.rootNode.addChildNode(cover)
+        let pageEdges = box(width: 3.86, height: 0.029, depth: 2.44, color: color(0.78, 0.68, 0.48))
+        pageEdges.position.y = -0.052
+        scene.rootNode.addChildNode(pageEdges)
+        let ground = box(width: 3.8, height: 0.04, depth: 2.4, color: color(0.91, 0.84, 0.67))
         ground.position.y = -0.03
         scene.rootNode.addChildNode(ground)
         let spine = box(width: 0.018, height: 0.045, depth: 2.4, color: color(0.48, 0.45, 0.38))
@@ -150,6 +160,7 @@ final class PocketTownScene {
         towerFoot.position = SCNVector3(0.1, 0.02, -0.15)
         scene.rootNode.addChildNode(towerFoot)
 
+        buildRiver()
         buildBridge()
         buildStation()
         buildTower()
@@ -176,6 +187,31 @@ final class PocketTownScene {
             }
             scene.rootNode.addChildNode(segment.pivot)
         }
+    }
+
+    private func buildRiver() {
+        guard let scene = renderer.scene else { return }
+        let paper = box(width: 0.34, height: 0.004, depth: 2.32, color: color(0.23, 0.57, 0.63))
+        paper.position = SCNVector3(-0.25, -0.007, 0)
+        scene.rootNode.addChildNode(paper)
+        for index in 0..<11 {
+            let ripple = box(
+                width: 0.05 + Double(index % 3) * 0.025, height: 0.001, depth: 0.009,
+                color: color(0.65, 0.82, 0.78))
+            ripple.position = SCNVector3(
+                -0.27 + Double(index % 3) * 0.045, -0.003,
+                -0.99 + Double(index) * 0.19)
+            scene.rootNode.addChildNode(ripple)
+        }
+        let flagPole = box(width: 0.013, height: 0.23, depth: 0.013, color: color(0.46, 0.32, 0.19))
+        flagPole.position = SCNVector3(0.18, 0.20, 0.18)
+        riverFlag.position = SCNVector3(0, 0.09, 0)
+        let pennant = box(width: 0.12, height: 0.058, depth: 0.008, color: color(0.83, 0.29, 0.18))
+        pennant.position.x = 0.06
+        riverFlag.addChildNode(pennant)
+        flagPole.addChildNode(riverFlag)
+        bridgeFolds.append(flagPole)
+        scene.rootNode.addChildNode(flagPole)
     }
 
     private func buildBridge() {
@@ -226,14 +262,18 @@ final class PocketTownScene {
         face.eulerAngles.x = .pi / 2
         face.position = SCNVector3(0, 0.19, 0.065)
         wall.addChildNode(face)
+        clockHand.position = SCNVector3(0, 0.19, 0.082)
+        let hand = box(width: 0.012, height: 0.079, depth: 0.006, color: color(0.27, 0.24, 0.19))
+        hand.position.y = 0.028
+        clockHand.addChildNode(hand)
+        wall.addChildNode(clockHand)
         towerFolds.append(tower)
         scene.rootNode.addChildNode(tower)
     }
 
     private func buildTrainAndSwitch() {
         guard let scene = renderer.scene else { return }
-        trainNode = box(width: 0.2, height: 0.08, depth: 0.1, color: color(0.72, 0.26, 0.2))
-        trainNode.position = SCNVector3(PocketTownTracks.station.x, 0.06, PocketTownTracks.station.y)
+        buildLocomotive()
         scene.rootNode.addChildNode(trainNode)
 
         switchNode = SCNNode()
@@ -244,12 +284,56 @@ final class PocketTownScene {
         switchBlade = box(width: 0.06, height: 0.015, depth: 0.22, color: color(0.76, 0.58, 0.2))
         switchBlade.position.y = 0.03
         switchNode.addChildNode(switchBlade)
+        signalLamp.position = SCNVector3(0.10, 0.04, 0.04)
+        let lens = SCNSphere(radius: 0.024)
+        lens.firstMaterial?.lightingModel = .constant
+        signalLamp.geometry = lens
+        switchNode.addChildNode(signalLamp)
         let switchHit = box(width: 0.34, height: 0.22, depth: 0.34, color: .clear)
         switchHit.name = "hit-switch"
         switchHit.opacity = 0.001
         switchHit.position.y = 0.08
         switchNode.addChildNode(switchHit)
         scene.rootNode.addChildNode(switchNode)
+    }
+
+    private func buildLocomotive() {
+        func add(_ part: SCNNode, at x: Double = 0, _ y: Double, _ z: Double) {
+            part.position = SCNVector3(x, y, z)
+            trainNode.addChildNode(part)
+        }
+        let crimson = color(0.70, 0.23, 0.17)
+        let charcoal = color(0.23, 0.28, 0.26)
+        let brass = color(0.93, 0.66, 0.26)
+        add(box(width: 0.105, height: 0.022, depth: 0.24, color: charcoal), at: 0, 0.023, 0)
+        let boiler = SCNNode(geometry: SCNCylinder(radius: 0.036, height: 0.145))
+        boiler.geometry?.firstMaterial?.diffuse.contents = crimson
+        boiler.eulerAngles.x = .pi / 2
+        add(boiler, at: 0, 0.065, 0.036)
+        add(box(width: 0.10, height: 0.086, depth: 0.079, color: crimson), at: 0, 0.083, -0.066)
+        add(box(width: 0.121, height: 0.015, depth: 0.092, color: charcoal), at: 0, 0.134, -0.066)
+        let chimney = SCNNode(geometry: SCNCylinder(radius: 0.015, height: 0.061))
+        chimney.geometry?.firstMaterial?.diffuse.contents = charcoal
+        add(chimney, at: 0, 0.112, 0.077)
+        let headlight = SCNNode(geometry: SCNSphere(radius: 0.015))
+        headlight.geometry?.firstMaterial?.diffuse.contents = brass
+        headlight.geometry?.firstMaterial?.lightingModel = .constant
+        add(headlight, at: 0, 0.067, 0.111)
+        for side in [-1.0, 1.0] {
+            add(box(width: 0.004, height: 0.037, depth: 0.043, color: brass), at: side * 0.052, 0.098, -0.066)
+            for z in [-0.071, 0.008, 0.082] {
+                let axle = SCNNode()
+                let wheel = SCNNode(geometry: SCNCylinder(radius: 0.027, height: 0.012))
+                wheel.geometry?.firstMaterial?.diffuse.contents = charcoal
+                wheel.eulerAngles.z = .pi / 2
+                axle.addChildNode(wheel)
+                let spoke = box(width: 0.006, height: 0.04, depth: 0.006, color: brass)
+                spoke.position.x = side * 0.008
+                axle.addChildNode(spoke)
+                add(axle, at: side * 0.055, 0.013, z)
+                wheels.append(axle)
+            }
+        }
     }
 
     private func buildHouses() {
@@ -273,12 +357,12 @@ final class PocketTownScene {
         guard let scene = renderer.scene else { return }
         let camera = SCNCamera()
         camera.usesOrthographicProjection = true
-        camera.orthographicScale = 2.45
+        camera.orthographicScale = 1.88
         camera.zNear = 0.1
         camera.zFar = 20
         let cameraNode = SCNNode()
         cameraNode.camera = camera
-        cameraNode.position = SCNVector3(0, 2.2, 7.2)
+        cameraNode.position = SCNVector3(0, 4.3, 7.2)
         cameraNode.look(at: SCNVector3(0, 0, 0))
         scene.rootNode.addChildNode(cameraNode)
         renderer.pointOfView = cameraNode
@@ -317,7 +401,20 @@ final class PocketTownScene {
 
         let sampler = gameplay.sampler()
         let sample = sampler.sample(gameplay.routeProgress)
-        trainNode.position = SCNVector3(sample.position.x, 0.06, sample.position.y)
+        let distance = gameplay.routeProgress * sampler.totalLength
+        for wheel in wheels { wheel.eulerAngles.x = CGFloat(distance / 0.027) }
+        let riverNear = max(0, 1 - hypot(sample.position.x - 0.5, sample.position.y - 0.6) / 0.62)
+        let clockNear = max(0, 1 - hypot(sample.position.x - 0.1, sample.position.y + 0.3) / 0.54)
+        riverFlag.eulerAngles.y =
+            gameplay.trainIsRunning && trackRoute == .riverside
+            ? CGFloat(riverNear * sin(distance * 15) * 0.8) : 0
+        clockHand.eulerAngles.z =
+            gameplay.trainIsRunning && trackRoute == .clockTower
+            ? CGFloat(-clockNear * 1.8) : 0
+        signalLamp.geometry?.firstMaterial?.diffuse.contents =
+            gameplay.trainIsRunning
+            ? color(0.98, 0.58, 0.19) : color(0.37, 0.78, 0.59)
+        trainNode.position = SCNVector3(sample.position.x, 0.048, sample.position.y)
         trainNode.eulerAngles.y = sample.heading
         trainNode.isHidden = folding.routes < 0.18
         switchNode.isHidden = folding.routes < 0.35
