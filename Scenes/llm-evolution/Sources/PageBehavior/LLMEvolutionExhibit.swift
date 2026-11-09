@@ -179,8 +179,8 @@ public enum LLMEvolutionExhibit {
                 kind: .prefab,
                 headline: zh ? "预制图文判断" : "Prefabricated vision judgment",
                 body: zh
-                    ? "示意图像卡：石阶湿润、天色灰亮。预制结论：「更适合雨天备伞出门，不宜长途骑行。」（离线预制。）"
-                    : "Schematic image: wet steps, gray sky. Prefab: “Better for a rainy outing with umbrella—not a long ride.” (Offline prefab.)",
+                    ? "示意图像卡上画着一把红伞。输入文字「图中有红伞吗？」，装置印出「有一把红伞」。（离线预制。）"
+                    : "The picture card shows a red umbrella. The question “Is there a red umbrella?” yields “Yes, a red umbrella.” (Offline prefab.)",
                 sourceLine: zh
                     ? "史实：OpenAI，2023，GPT-4 技术报告（图文输入）"
                     : "History: OpenAI, 2023, GPT-4 report (image+text input)")

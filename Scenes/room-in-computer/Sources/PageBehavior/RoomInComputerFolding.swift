@@ -6,15 +6,20 @@ public struct RoomInComputerFolding: Equatable, Sendable {
     public let desk: Double
     public let chair: Double
     public let lamp: Double
+    public let guestUpright: Double
+    public let guestTravel: Double
+    public var canChangeTime: Bool { guestTravel == 1 }
 
     public init(progress: Double) {
         let progress = Self.clamp(progress)
         floor = Self.stage(progress, start: 0, end: 0.26)
         walls = Self.stage(progress, start: 0.08, end: 0.38)
-        bed = Self.stage(progress, start: 0.22, end: 0.58)
-        desk = Self.stage(progress, start: 0.34, end: 0.72)
-        chair = Self.stage(progress, start: 0.4, end: 0.78)
+        bed = Self.stage(progress, start: 0.22, end: 0.42)
+        desk = Self.stage(progress, start: 0.20, end: 0.42)
+        chair = Self.stage(progress, start: 0.25, end: 0.42)
         lamp = Self.stage(progress, start: 0.62, end: 1)
+        guestUpright = Self.stage(progress, start: 0.30, end: 0.42)
+        guestTravel = Self.stage(progress, start: 0.42, end: 0.80)
     }
 
     static func stage(_ progress: Double, start: Double, end: Double) -> Double {

@@ -146,7 +146,7 @@ public struct PocketTownGameplay: Equatable, Sendable {
     }
 
     private mutating func updateInteractionGate(folding: PocketTownFolding) {
-        canInteract = folding.routes >= 0.82 && folding.houses >= 0.18
+        canInteract = folding.train >= 0.98
     }
 
     private func canToggleSwitch() -> Bool {

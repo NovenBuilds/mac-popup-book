@@ -18,6 +18,7 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
     public var notice: UnderwaterTheaterNotice?
     public var noticeUntil: Double
     public var canInteract: Bool
+    public private(set) var reef = ReefVisibility()
 
     public static let patrolDuration = 28.0
     public static let flowDecayPerSecond = 1.35
@@ -104,6 +105,7 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
     public mutating func advance(
         bookProgress: Double, clock: Double, deltaTime: Double, folding: UnderwaterTheaterFolding
     ) {
+        reef.advance(progress: bookProgress)
         let delta = max(0, deltaTime)
         updateInteractionGate(folding: folding)
 
@@ -122,7 +124,7 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
             fishOffset = UnderwaterTheaterSteering.integrate(
                 current: fishOffset, target: TheaterPoint(0, 0), deltaTime: delta,
                 flowStrength: 0, dragging: false)
-        } else if folding.fish >= 0.55 {
+        } else if reef.layer >= 3 {
             let guide = flowStrength * (dragging ? 1.0 : 0.65)
             let flowScene = flowPoint
             let sample = sampler().sample(fishProgress)

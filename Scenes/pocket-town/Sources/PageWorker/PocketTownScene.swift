@@ -141,23 +141,24 @@ final class PocketTownScene {
             pocketPoints(PocketTownTracks.approachSpine), width: 0.028, height: 0.018,
             color: color(0.4, 0.54, 0.61), bucket: .spine)
         addRoute(
-            pocketPoints(PocketTownTracks.riversideLoop), width: 0.025, height: 0.022,
+            pocketPoints(
+                Array(PocketTownTracks.riversideLoop.dropLast(PocketTownTracks.returnTrack.count - 1))),
+            width: 0.025, height: 0.022,
             color: color(0.28, 0.26, 0.23), bucket: .riverside)
         addRoute(
-            pocketPoints(PocketTownTracks.loopLinks(route: .riverside)), width: 0.025, height: 0.022,
-            color: color(0.28, 0.26, 0.23), bucket: .riverside)
-        addRoute(
-            pocketPoints(PocketTownTracks.clockLoop), width: 0.025, height: 0.024,
-            color: color(0.6, 0.43, 0.17), bucket: .clock)
-        addRoute(
-            pocketPoints(PocketTownTracks.loopLinks(route: .clockTower)), width: 0.025, height: 0.024,
+            pocketPoints(Array(PocketTownTracks.clockLoop.dropLast(PocketTownTracks.returnTrack.count - 1))),
+            width: 0.025, height: 0.024,
             color: color(0.6, 0.43, 0.17), bucket: .clock)
 
-        let platform = box(width: 0.68, height: 0.035, depth: 0.26, color: color(0.36, 0.33, 0.28))
-        platform.position = SCNVector3(-1.33, 0.02, -0.25)
+        addRoute(
+            pocketPoints(PocketTownTracks.returnTrack), width: 0.026, height: 0.019,
+            color: color(0.4, 0.54, 0.61), bucket: .spine)
+
+        let platform = box(width: 0.66, height: 0.025, depth: 0.105, color: color(0.36, 0.33, 0.28))
+        platform.position = SCNVector3(-1.08, 0.008, -0.72)
         scene.rootNode.addChildNode(platform)
         let towerFoot = box(width: 0.46, height: 0.03, depth: 0.32, color: color(0.36, 0.33, 0.28))
-        towerFoot.position = SCNVector3(0.1, 0.02, -0.15)
+        towerFoot.position = SCNVector3(-0.31, 0.014, 0.39)
         scene.rootNode.addChildNode(towerFoot)
 
         buildRiver()
@@ -204,7 +205,7 @@ final class PocketTownScene {
             scene.rootNode.addChildNode(ripple)
         }
         let flagPole = box(width: 0.013, height: 0.23, depth: 0.013, color: color(0.46, 0.32, 0.19))
-        flagPole.position = SCNVector3(0.18, 0.20, 0.18)
+        flagPole.position = SCNVector3(-0.51, 0.065, -0.29)
         riverFlag.position = SCNVector3(0, 0.09, 0)
         let pennant = box(width: 0.12, height: 0.058, depth: 0.008, color: color(0.83, 0.29, 0.18))
         pennant.position.x = 0.06
@@ -216,10 +217,16 @@ final class PocketTownScene {
 
     private func buildBridge() {
         guard let scene = renderer.scene else { return }
-        let deck = box(width: 0.58, height: 0.021, depth: 0.20, color: color(0.73, 0.51, 0.30))
-        deck.position = SCNVector3(-0.25, 0.001, 0.05)
-        scene.rootNode.addChildNode(deck)
-        for z in [-0.045, 0.145] {
+        for center in [-0.52, 0.94] {
+            addBridge(at: center, to: scene.rootNode)
+        }
+    }
+
+    private func addBridge(at center: Double, to root: SCNNode) {
+        let deck = box(width: 0.58, height: 0.021, depth: 0.36, color: color(0.73, 0.51, 0.30))
+        deck.position = SCNVector3(-0.25, 0.001, center)
+        root.addChildNode(deck)
+        for z in [center - 0.17, center + 0.17] {
             let rail = SCNNode()
             rail.position = SCNVector3(-0.25, 0.015, z)
             let cap = box(width: 0.56, height: 0.014, depth: 0.014, color: color(0.61, 0.40, 0.22))
@@ -231,37 +238,43 @@ final class PocketTownScene {
                 rail.addChildNode(post)
             }
             bridgeFolds.append(rail)
-            scene.rootNode.addChildNode(rail)
+            root.addChildNode(rail)
         }
     }
 
     private func buildStation() {
         guard let scene = renderer.scene else { return }
         let body = foldedBuilding(
-            x: -1.38, z: -0.12, width: 0.48, height: 0.38, depth: 0.1,
+            x: PocketTownTracks.stationWall.x, z: PocketTownTracks.stationWall.y, width: 0.46, height: 0.25,
+            depth: 0.075,
             wall: color(0.48, 0.47, 0.43), roof: color(0.3, 0.27, 0.23))
         houseFolds.append(body)
         scene.rootNode.addChildNode(body)
 
         let canopy = SCNNode()
-        canopy.position = SCNVector3(0, 0.39, 0.055)
-        let roof = box(width: 0.72, height: 0.035, depth: 0.42, color: color(0.58, 0.43, 0.18))
-        roof.position.z = 0.2
+        canopy.position = SCNVector3(0, 0.267, 0.041)
+        let roof = box(width: 0.57, height: 0.024, depth: 0.25, color: color(0.58, 0.43, 0.18))
+        roof.position.z = 0.11
         canopy.addChildNode(roof)
         canopyFolds.append(canopy)
         body.addChildNode(canopy)
+        for x in [-0.245, 0.245] {
+            let support = box(width: 0.023, height: 0.26, depth: 0.025, color: color(0.49, 0.36, 0.20))
+            support.position = SCNVector3(x, 0.13, 0.047)
+            body.addChildNode(support)
+        }
 
         let stationHit = box(width: 0.62, height: 0.28, depth: 0.55, color: .clear)
         stationHit.name = "hit-station"
         stationHit.opacity = 0.001
-        stationHit.position = SCNVector3(-1.34, 0.16, -0.15)
+        stationHit.position = SCNVector3(PocketTownTracks.station.x, 0.12, -0.66)
         scene.rootNode.addChildNode(stationHit)
     }
 
     private func buildTower() {
         guard let scene = renderer.scene else { return }
         let tower = foldedBuilding(
-            x: 0.1, z: -0.08, width: 0.34, height: 0.82, depth: 0.1,
+            x: -0.31, z: 0.39, width: 0.28, height: 0.61, depth: 0.1,
             wall: color(0.46, 0.41, 0.35), roof: color(0.32, 0.25, 0.19))
         guard let wall = tower.childNodes.first else { return }
         let face = SCNNode(geometry: SCNCylinder(radius: 0.105, height: 0.025))
@@ -285,7 +298,7 @@ final class PocketTownScene {
 
         switchNode = SCNNode()
         switchNode.position = SCNVector3(
-            PocketTownTracks.switchCenter.x, 0.08, PocketTownTracks.switchCenter.y)
+            PocketTownTracks.switchCenter.x - 0.09, 0.04, -0.20)
         let base = box(width: 0.16, height: 0.03, depth: 0.2, color: color(0.42, 0.35, 0.28))
         switchNode.addChildNode(base)
         switchBlade = box(width: 0.06, height: 0.015, depth: 0.22, color: color(0.76, 0.58, 0.2))
@@ -347,19 +360,19 @@ final class PocketTownScene {
         guard let scene = renderer.scene else { return }
         let houses = [
             foldedBuilding(
-                x: 0.88, z: 0.28, width: 0.34, height: 0.34, depth: 0.1,
+                x: 0.38, z: 0.43, width: 0.27, height: 0.34, depth: 0.1,
                 wall: color(0.58, 0.36, 0.3), roof: color(0.35, 0.24, 0.2)),
             foldedBuilding(
-                x: 1.24, z: 0.12, width: 0.3, height: 0.44, depth: 0.1,
+                x: 0.81, z: 0.43, width: 0.26, height: 0.44, depth: 0.1,
                 wall: color(0.39, 0.5, 0.54), roof: color(0.25, 0.31, 0.34)),
             foldedBuilding(
-                x: 1.04, z: -0.44, width: 0.4, height: 0.28, depth: 0.1,
+                x: 1.16, z: 0.45, width: 0.24, height: 0.28, depth: 0.1,
                 wall: color(0.58, 0.53, 0.38), roof: color(0.37, 0.31, 0.2)),
         ]
         houseFolds += houses
         for house in houses { scene.rootNode.addChildNode(house) }
         for (x, z, height) in [
-            (-1.57, 0.67, 0.37), (-1.33, 0.83, 0.25), (1.50, -0.74, 0.44), (1.56, 0.66, 0.32),
+            (-1.14, 0.24, 0.37), (-0.91, 0.56, 0.25), (1.77, -0.69, 0.28), (1.77, 0.61, 0.29),
         ] {
             let tree = SCNNode()
             tree.position = SCNVector3(x, 0.02, z)
@@ -437,8 +450,8 @@ final class PocketTownScene {
         let sample = sampler.sample(gameplay.routeProgress)
         let distance = gameplay.routeProgress * sampler.totalLength
         for wheel in wheels { wheel.eulerAngles.x = CGFloat(distance / 0.027) }
-        let riverNear = max(0, 1 - hypot(sample.position.x - 0.5, sample.position.y - 0.6) / 0.62)
-        let clockNear = max(0, 1 - hypot(sample.position.x - 0.1, sample.position.y + 0.3) / 0.54)
+        let riverNear = max(0, 1 - hypot(sample.position.x - 0.46, sample.position.y + 0.80) / 0.62)
+        let clockNear = max(0, 1 - hypot(sample.position.x - 0.65, sample.position.y + 0.09) / 0.54)
         riverFlag.eulerAngles.y =
             gameplay.trainIsRunning && trackRoute == .riverside
             ? CGFloat(riverNear * sin(distance * 15) * 0.8) : 0

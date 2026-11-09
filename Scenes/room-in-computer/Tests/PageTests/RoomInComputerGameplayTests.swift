@@ -52,31 +52,23 @@ final class RoomInComputerGameplayTests: XCTestCase {
         XCTAssertEqual(state.guestDisplay.activity, .evening)
     }
 
-    func testFoldCollapseResetsGuestHomeButKeepsRoomTime() {
-        var state = RoomInComputerGameplay()
-        state.handleStrip(.dockEvening)
-        let closed = RoomInComputerFolding(progress: 0.1)
-        state.advance(deltaTime: 0.2, folding: closed)
-        XCTAssertEqual(state.guestGoal, .morning)
-        XCTAssertEqual(state.guestMove, 1)
-        XCTAssertEqual(state.roomTime, RoomInComputerGameplay.eveningDock)
-    }
-
-    func testReopenWalksToSavedTimePhase() {
-        var state = RoomInComputerGameplay()
-        let closed = RoomInComputerFolding(progress: 0.1)
-        let open = RoomInComputerFolding(progress: 1)
-        state.handleStrip(.dockEvening)
-        state.advance(deltaTime: 0.1, folding: closed)
-        XCTAssertEqual(state.guestDisplay.activity, .morning)
-
-        state.advance(deltaTime: 0.05, folding: open)
-        XCTAssertEqual(state.guestGoal, .evening)
-        XCTAssertLessThan(state.guestMove, 1)
-
-        state.advance(deltaTime: RoomInComputerGameplay.walkDuration * 2, folding: open)
-        XCTAssertEqual(state.guestMove, 1)
-        XCTAssertEqual(state.guestDisplay.activity, .evening)
+    func testPaperGuestRetracesTheSameRouteAndWaitsAtAStoppedHinge() {
+        var state = RoomInComputerGameplay(restoredTime: 1)
+        let levels = [0.30, 0.36, 0.42, 0.46, 0.59, 0.73, 0.79]
+        func sample(_ progress: Double, elapsed: Double) -> RoomGuestWaypoint {
+            let fold = RoomInComputerFolding(progress: progress)
+            state.advance(deltaTime: elapsed, folding: fold)
+            return state.entrancePoint(at: fold.guestTravel)
+        }
+        let rising = levels.map { sample($0, elapsed: 0.016) }
+        let falling = levels.reversed().map { sample($0, elapsed: 0.2) }
+        XCTAssertEqual(rising, Array(falling.reversed()))
+        XCTAssertEqual(rising[0], RoomInComputerGameplay.paperSlot)
+        XCTAssertNotEqual(rising.first, rising.last)
+        for point in rising {
+            XCTAssertFalse(RoomFurnitureLayout.overlapsFurniture(x: point.x, z: point.z))
+        }
+        XCTAssertEqual(sample(0.59, elapsed: 0), sample(0.59, elapsed: 2))
         XCTAssertEqual(state.roomTime, RoomInComputerGameplay.eveningDock)
     }
 

@@ -2,6 +2,43 @@ import PageBehavior
 import XCTest
 
 final class MechanicalPlanetariumGameplayTests: XCTestCase {
+    func testAutomaticDriveYieldsToCrankAndPauseAndKeepsPhaseWhenFolded() {
+        var state = MechanicalPlanetariumGameplay()
+        func tick(_ progress: Double) {
+            state.advance(
+                clock: 0, deltaTime: 0.05, folding: MechanicalPlanetariumFolding(progress: progress))
+        }
+        tick(0.50)
+        XCTAssertEqual(state.mechanism.turns, 0)
+        tick(0.92)
+        XCTAssertEqual(state.mechanism.turns, 0)
+        tick(0.96)
+        let phase = state.mechanism.turns
+        XCTAssertGreaterThan(phase, 0)
+        tick(0.91)
+        XCTAssertGreaterThan(state.mechanism.turns, phase)
+        let open = MechanicalPlanetariumFolding(progress: 1)
+        state.beginCrankDrag(x: 0.4, folding: open, now: 0)
+        state.updateCrankDrag(x: 0.6)
+        let manuallySet = state.mechanism.turns
+        tick(1)
+        XCTAssertEqual(state.mechanism.turns, manuallySet)
+        state.endCrankDrag()
+        tick(1)
+        XCTAssertGreaterThan(state.mechanism.turns, manuallySet)
+        let beforeFold = state.mechanism.turns
+        tick(0.50)
+        XCTAssertEqual(state.mechanism.turns, beforeFold)
+        tick(1)
+        XCTAssertEqual(state.mechanism.turns, beforeFold + 0.05 / 18, accuracy: 1e-9)
+        state.handleTap(.pauseToggle, folding: open, now: 0)
+        let paused = state.mechanism.turns
+        tick(0.1)
+        tick(1)
+        XCTAssertTrue(state.isPaused)
+        XCTAssertEqual(state.mechanism.turns, paused)
+    }
+
     func testCrankDriveOnlyWhenOpen() {
         var state = MechanicalPlanetariumGameplay()
         let closed = MechanicalPlanetariumFolding(progress: 0.2)
