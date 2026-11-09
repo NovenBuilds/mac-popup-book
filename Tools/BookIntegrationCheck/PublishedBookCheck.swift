@@ -53,6 +53,9 @@ import PopupBookCore
                     .angle(0.41429, "closing-64deg"), .angle(0.37143, "closing-61deg"),
                     .settle(0.4), .record("room-held-61deg", frames: 6),
                     .angle(0.41429, "reversing-64deg"), .angle(0.37143, "reversing-61deg"),
+                    .angle(0.44, "guest-leaves-bed"),
+                    .angle(0.60, "guest-crosses-room"),
+                    .angle(0.70, "guest-walks-around-desk"),
                     .angle(1, "room-after-reversal"),
                     .action("room-night", sound: "room.strip", feedback: ["夜晚", "Evening"]),
                     .action("room-dawn", sound: "room.strip", feedback: ["清晨", "Morning"]),
@@ -60,6 +63,8 @@ import PopupBookCore
                 ]
             case "underwater-theater":
                 plan += [
+                    .angle(0.26, "reef-backdrop"),
+                    .angle(0.40, "reef-folding-coral"),
                     .angle(0.50, "reef-half"), .settle(0.4), .record("reef-half", frames: 18),
                     .angle(0.96, "reef-above-100deg"), .settle(0.4), .record("reef-open", frames: 18),
                     .action("current-west", sound: "sea.current", feedback: ["左侧海草", "by the seaweed"]),

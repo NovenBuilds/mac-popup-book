@@ -97,6 +97,7 @@ private func descriptor(_ id: String, version: Int = 1) -> Data {
         XCTAssertEqual(registry.pages.map(\.id), ["good"])
         XCTAssertNotNil(registry.errors["duplicate"])
         XCTAssertNotNil(registry.errors["missing"])
+        XCTAssertEqual(registry.unavailablePublishedIDs, ["duplicate", "wrong", "missing"])
     }
     func testNoPageStillAllowsShellToRun() {
         let clock = TestDisplay()

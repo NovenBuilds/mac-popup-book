@@ -65,7 +65,10 @@ public struct RoomInComputerGameplay: Equatable, Sendable {
     public private(set) var guestMove: Double
     public private(set) var guestPath: [RoomGuestWaypoint] = []
     public var draggingStrip: Bool
-    public static let paperSlot = RoomGuestWaypoint(x: 0.63, z: 0.59)
+    public static let paperSlot: RoomGuestWaypoint = {
+        let bedside = RoomFurnitureLayout.pose(for: .morning)
+        return RoomGuestWaypoint(x: bedside.x, z: bedside.z)
+    }()
     private var entrancePath: [RoomGuestWaypoint] = []
     private var entranceDestination: RoomGuestPose?
 

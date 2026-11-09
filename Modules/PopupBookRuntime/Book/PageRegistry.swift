@@ -3,6 +3,7 @@ import PopupBookCore
 
 public struct PageRegistry {
     public private(set) var pages: [PageDescriptor] = []
+    public private(set) var unavailablePublishedIDs: [String] = []
     public private(set) var errors: [String: String] = [:]
     public init(descriptors: [Data], published: [String]) {
         var discovered: [String: PageDescriptor] = [:]
@@ -25,6 +26,7 @@ public struct PageRegistry {
                 pages.append(page)
             } else {
                 errors[id] = "unavailable"
+                unavailablePublishedIDs.append(id)
             }
         }
     }

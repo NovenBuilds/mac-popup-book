@@ -21,24 +21,15 @@ public struct TheaterPoint: Equatable, Sendable, Codable {
     }
 }
 
-/// 与场景几何一致的巡游折线：自珊瑚后穿出，经拱门，绕至贝壳台再折返。
+/// 鱼群在拱门前方的水道巡游，整队都与可折叠的布景隔开。
 public enum UnderwaterTheaterTracks {
-    public static let archCenter = TheaterPoint(0.02, 0.14)
-    public static let retreatAnchor = TheaterPoint(-0.58, -0.06)
+    public static let frontWater = TheaterPoint(0.02, 0.655)
+    public static let shell = TheaterPoint(0.76, 0.29)
 
-    public static let patrolLoop: [TheaterPoint] = [
-        retreatAnchor,
-        TheaterPoint(-0.38, 0.1),
-        TheaterPoint(-0.14, 0.22),
-        archCenter,
-        TheaterPoint(0.2, 0.1),
-        TheaterPoint(0.46, 0.04),
-        TheaterPoint(0.64, -0.02),
-        TheaterPoint(0.4, -0.14),
-        TheaterPoint(0.04, -0.1),
-        TheaterPoint(-0.3, -0.12),
-        retreatAnchor,
-    ]
+    public static let patrolLoop: [TheaterPoint] = (0...48).map { step in
+        let angle = Double(step % 48) * 2 * .pi / 48 + .pi
+        return TheaterPoint(-0.05 + 0.48 * cos(angle), frontWater.y + 0.028 * sin(angle))
+    }
 
     public enum TapCurrent: Int, CaseIterable, Equatable, Sendable {
         case westSeaweed
@@ -49,7 +40,7 @@ public enum UnderwaterTheaterTracks {
             switch self {
             case .westSeaweed: TheaterPoint(-0.72, 0.18)
             case .archRise: TheaterPoint(0.02, 0.32)
-            case .shellLedge: TheaterPoint(0.72, 0.06)
+            case .shellLedge: TheaterPoint(shell.x + 0.28, shell.y)
             }
         }
     }

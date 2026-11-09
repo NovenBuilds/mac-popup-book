@@ -72,6 +72,23 @@ final class RoomInComputerGameplayTests: XCTestCase {
         XCTAssertEqual(state.roomTime, RoomInComputerGameplay.eveningDock)
     }
 
+    func testGuestStartsAtBedAndCrossesTheRoomToRead() {
+        var state = RoomInComputerGameplay(restoredTime: 0.5)
+        state.advance(deltaTime: 0, folding: RoomInComputerFolding(progress: 0.42))
+        let bedside = RoomFurnitureLayout.pose(for: .morning)
+        let deskSide = RoomFurnitureLayout.pose(for: .afternoon)
+        let route = (0...240).map { state.entrancePoint(at: Double($0) / 240) }
+        XCTAssertEqual(route.first, RoomGuestWaypoint(x: bedside.x, z: bedside.z))
+        XCTAssertEqual(route.last?.x ?? 0, deskSide.x, accuracy: 1e-8)
+        XCTAssertEqual(route.last?.z ?? 0, deskSide.z, accuracy: 1e-8)
+        var length = 0.0
+        for (start, end) in zip(route, route.dropFirst()) {
+            length += hypot(end.x - start.x, end.z - start.z)
+            XCTAssertTrue(RoomGuestRouter.segmentClear(from: start, to: end))
+        }
+        XCTAssertGreaterThan(length, 1.3)
+    }
+
     func testPrepareRestoreUsesSavedRoomTime() {
         let saved = RoomInComputerSnapshot(roomTime: 0.95)
         let state = RoomInComputerGameplay(restoredTime: saved.roomTime)

@@ -178,6 +178,11 @@ struct BookView: View {
                 maxWidth: .infinity, minHeight: 32, maxHeight: 32, alignment: .leading)
         }.padding(16).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
     }
+    private func isPageUnavailable(_ id: String) -> Bool {
+        if case .failed = model.state.pageStates[id] { return true }
+        return false
+    }
+
     private var directory: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(L10n.text("目录")).font(.title2)
@@ -186,14 +191,11 @@ struct BookView: View {
                     model.coordinator.open(page.id)
                     model.directory = false
                 } label: {
-                    HStack {
-                        Text(page.title())
-                        if case .failed = model.state.pageStates[page.id] { Text(L10n.text("此页暂不可用")) }
-                    }
-                }
+                    Text(page.title())
+                }.disabled(isPageUnavailable(page.id))
             }
-            ForEach(model.composition.registry.errors.keys.sorted(), id: \.self) { id in
-                Text("\(id)：\(L10n.text("此页暂不可用"))")
+            ForEach(model.composition.registry.unavailablePublishedIDs, id: \.self) { id in
+                Button(id) {}.disabled(true)
             }
             Button(L10n.text("关闭")) { model.directory = false }
         }.padding(28).frame(minWidth: 320)

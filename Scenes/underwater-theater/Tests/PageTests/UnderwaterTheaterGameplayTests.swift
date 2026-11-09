@@ -81,7 +81,8 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
         let state = UnderwaterTheaterGameplay()
         XCTAssertEqual(state.tapTarget(at: TheaterPoint(-0.72, 0.18)), .westSeaweed)
         XCTAssertEqual(state.tapTarget(at: TheaterPoint(0.02, 0.32)), .archRise)
-        XCTAssertEqual(state.tapTarget(at: TheaterPoint(0.72, 0.06)), .shellLedge)
+        XCTAssertEqual(
+            state.tapTarget(at: UnderwaterTheaterTracks.TapCurrent.shellLedge.sceneHint), .shellLedge)
     }
 
     func testTrackHeadingUsesPositiveXAsForward() {
@@ -91,10 +92,14 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
         XCTAssertEqual(forward.sample(0.5).heading, .pi / 2, accuracy: 0.0001)
     }
 
-    func testPatrolLoopHasArchPoint() {
-        XCTAssertTrue(UnderwaterTheaterTracks.patrolLoop.contains(UnderwaterTheaterTracks.archCenter))
-        XCTAssertGreaterThan(
-            TheaterTrackSampler(points: UnderwaterTheaterTracks.patrolLoop).totalLength, 2.5)
+    func testPatrolLoopClosesInFrontOfCoral() {
+        let track = TheaterTrackSampler(points: UnderwaterTheaterTracks.patrolLoop)
+        XCTAssertEqual(track.points.first, track.points.last)
+        XCTAssertGreaterThan(track.totalLength, 1.8)
+        for point in track.points {
+            XCTAssertGreaterThan(point.y, UnderwaterTheaterSteering.minBoundsY)
+            XCTAssertLessThan(point.y, UnderwaterTheaterSteering.maxBoundsY)
+        }
     }
 
     func testOppositeFlowsSteerDifferentDirections() {
@@ -104,14 +109,14 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
         west.fishProgress = 0.28
         east.fishProgress = 0.28
 
-        west.beginDrag(at: TheaterPoint(-0.930, -0.086), folding: open, now: 0)
-        east.beginDrag(at: TheaterPoint(0.868, -0.043), folding: open, now: 0)
+        west.beginDrag(at: TheaterPoint(-0.930, 0.65), folding: open, now: 0)
+        east.beginDrag(at: TheaterPoint(0.868, 0.65), folding: open, now: 0)
         for step in 0..<30 {
             let time = Double(step) * 0.1
             west.fishProgress = 0.28
             east.fishProgress = 0.28
-            west.moveDrag(to: TheaterPoint(-0.930, -0.086), folding: open)
-            east.moveDrag(to: TheaterPoint(0.868, -0.043), folding: open)
+            west.moveDrag(to: TheaterPoint(-0.930, 0.65), folding: open)
+            east.moveDrag(to: TheaterPoint(0.868, 0.65), folding: open)
             west.advance(bookProgress: 1, clock: time, deltaTime: 0.1, folding: open)
             east.advance(bookProgress: 1, clock: time, deltaTime: 0.1, folding: open)
         }
@@ -125,7 +130,7 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
         var state = UnderwaterTheaterGameplay()
         let open = UnderwaterTheaterFolding(progress: 1)
         state.fishProgress = 0.32
-        state.beginDrag(at: TheaterPoint(0.868, -0.043), folding: open, now: 0)
+        state.beginDrag(at: TheaterPoint(0.868, 0.65), folding: open, now: 0)
         state.advance(bookProgress: 1, clock: 0.2, deltaTime: 1.2, folding: open)
         let peaked = state.fishOffset
         XCTAssertGreaterThan(hypot(peaked.x, peaked.y), 0.04)
@@ -139,21 +144,47 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
         XCTAssertLessThan(mag, 0.03)
     }
 
-    func testSteeredSchoolAvoidsCoralAndPageEdge() {
-        var state = UnderwaterTheaterGameplay()
-        let open = UnderwaterTheaterFolding(progress: 1)
-        state.fishProgress = 0.2
-        state.beginDrag(at: TheaterPoint(-1.178, -0.387), folding: open, now: 0)
-        state.advance(bookProgress: 1, clock: 0, deltaTime: 2.5, folding: open)
-        let center = state.schoolCenter().position
-        XCTAssertGreaterThanOrEqual(center.x, UnderwaterTheaterSteering.minBoundsX)
-        XCTAssertLessThanOrEqual(center.x, UnderwaterTheaterSteering.maxBoundsX)
-        XCTAssertGreaterThanOrEqual(center.y, UnderwaterTheaterSteering.minBoundsY)
-        XCTAssertLessThanOrEqual(center.y, UnderwaterTheaterSteering.maxBoundsY)
-        for obstacle in UnderwaterTheaterSteering.coralObstacles {
-            let dx = center.x - obstacle.center.x
-            let dy = center.y - obstacle.center.y
-            XCTAssertGreaterThanOrEqual(dx * dx + dy * dy, obstacle.radius * obstacle.radius)
+    func testWholeSchoolClearsCoralAndPageEvenWhenSteeredAtTheLaneEdges() {
+        let track = TheaterTrackSampler(points: UnderwaterTheaterTracks.patrolLoop)
+        let fishRadius = 0.155
+        for sample in 0...180 {
+            let anchor = track.sample(Double(sample) / 180).position
+            for direction in 0..<24 {
+                let heading = Double(direction) * .pi / 12
+                let force = TheaterPoint(cos(heading), sin(heading))
+                let school = anchor + UnderwaterTheaterSteering.constrain(pathAnchor: anchor, offset: force)
+                for index in 0..<6 {
+                    let fish =
+                        school + UnderwaterTheaterSteering.formationOffset(index: index, heading: heading)
+                    // Full tail and nose clear the front faces of the arch and grass at z = 0.13.
+                    XCTAssertGreaterThan(fish.y - fishRadius, 0.13)
+                    XCTAssertLessThan(fish.y + fishRadius, 1.17)
+                    XCTAssertLessThan(abs(fish.x) + fishRadius, 1.15)
+                    XCTAssertGreaterThan(
+                        UnderwaterTheaterSteering.formationHeight(index: index, flutter: -1) - 0.082, 0.30)
+                }
+            }
+        }
+    }
+
+    func testIndependentWildlifeLanesClearReefAndOtherAnimals() {
+        for tick in 0...1600 {
+            let clock = Double(tick) * 0.06
+            let crab = ReefWildlifeMotion.crab(at: clock)
+            let seahorse = ReefWildlifeMotion.seahorse(at: clock)
+            let butterfly = ReefWildlifeMotion.butterfly(at: clock).position
+            let shark = ReefWildlifeMotion.shark(at: clock).position
+            // Floor crab clears the ground, the star behind it, and the fish above it.
+            XCTAssertGreaterThan(crab.y - 0.092, 0)
+            XCTAssertLessThan(crab.z + 0.06, 1.01 - 0.135)
+            XCTAssertLessThan(crab.y + 0.20, 0.30)
+            // Seahorse clears the shell and the front school; butterfly has its own midwater lane.
+            XCTAssertGreaterThan(seahorse.z - 0.05, UnderwaterTheaterTracks.shell.y + 0.13)
+            XCTAssertGreaterThan(seahorse.x - 0.16, 0.93)
+            XCTAssertLessThan(butterfly.z + 0.20, 0.13)
+            XCTAssertGreaterThan(butterfly.y - 0.12, 0.43)
+            // Include the lower shark fin above the highest paper skyline and arch.
+            XCTAssertGreaterThan(shark.y - 0.16, 0.84)
         }
     }
 }

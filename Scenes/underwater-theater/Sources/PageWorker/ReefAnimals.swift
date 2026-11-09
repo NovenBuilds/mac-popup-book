@@ -1,3 +1,4 @@
+import PageBehavior
 import SceneKit
 
 /// Cut-paper wildlife on separate floor, grass and distant-water planes.
@@ -29,8 +30,11 @@ final class ReefAnimals {
                     on: star, at: SCNVector3(0.059 * cos(angle), 0.059 * sin(angle), 0.013), radius: 0.012,
                     tint: index == 0 ? sand : pink)
             }
-            star.position = SCNVector3(index == 0 ? -1.29 : 1.24, 0.031, index == 0 ? 0.69 : 0.81)
-            star.eulerAngles.x = -.pi / 2
+            let card = SCNNode()
+            for part in star.childNodes { card.addChildNode(part) }
+            card.eulerAngles.x = -.pi / 2
+            star.addChildNode(card)
+            star.position = SCNVector3(index == 0 ? -1.53 : 1.15, 0.021, index == 0 ? 1.01 : 0.98)
             root.addChildNode(star)
         }
 
@@ -135,7 +139,8 @@ final class ReefAnimals {
             star.eulerAngles.y = CGFloat(0.19 * sin(clock * 0.54 + Double(index) * 2))
         }
         crab.isHidden = layer < 2
-        crab.position = SCNVector3(-1.00 + 0.29 * sin(clock * 0.67), 0.071, 0.63)
+        let crabCenter = ReefWildlifeMotion.crab(at: clock)
+        crab.position = SCNVector3(crabCenter.x, crabCenter.y, crabCenter.z)
         for (index, leg) in legs.enumerated() {
             leg.eulerAngles.z = CGFloat(sin(clock * 9 + Double(index) * 1.6) * 0.25)
         }
@@ -143,22 +148,21 @@ final class ReefAnimals {
             claw.eulerAngles.z = CGFloat(0.16 * sin(clock * 2.7 + Double(index)))
         }
         seahorse.isHidden = layer < 2
-        seahorse.position = SCNVector3(1.12 + 0.07 * sin(clock * 0.59), 0.28 + 0.07 * cos(clock * 1.25), 0.39)
+        let seahorseCenter = ReefWildlifeMotion.seahorse(at: clock)
+        seahorse.position = SCNVector3(seahorseCenter.x, seahorseCenter.y, seahorseCenter.z)
         seahorse.eulerAngles.z = CGFloat(0.13 * sin(clock * 1.4))
         seahorse.eulerAngles.y = CGFloat(0.26 * sin(clock * 0.7))
 
-        let fishPhase = clock * 0.56 + 0.9
+        let reefFish = ReefWildlifeMotion.butterfly(at: clock)
         butterfly.isHidden = layer < 3
-        butterfly.position = SCNVector3(
-            0.87 + 0.42 * cos(fishPhase), 0.22 + 0.055 * sin(fishPhase * 2), -0.22 + 0.18 * sin(fishPhase))
-        butterfly.eulerAngles.y = CGFloat(-atan2(0.18 * cos(fishPhase), -0.42 * sin(fishPhase)))
+        butterfly.position = SCNVector3(reefFish.position.x, reefFish.position.y, reefFish.position.z)
+        butterfly.eulerAngles.y = CGFloat(reefFish.heading)
         butterflyTail.eulerAngles.y = CGFloat(0.44 * sin(clock * 8))
 
-        let sharkPhase = clock * 0.25 + 3.9
+        let distantShark = ReefWildlifeMotion.shark(at: clock)
         shark.isHidden = layer < 4
-        shark.position = SCNVector3(
-            1.18 * cos(sharkPhase), 0.70 + 0.036 * sin(sharkPhase * 2), -0.82 + 0.08 * sin(sharkPhase))
-        shark.eulerAngles.y = CGFloat(-atan2(0.08 * cos(sharkPhase), -1.18 * sin(sharkPhase)))
+        shark.position = SCNVector3(distantShark.position.x, distantShark.position.y, distantShark.position.z)
+        shark.eulerAngles.y = CGFloat(distantShark.heading)
         sharkTail.eulerAngles.y = CGFloat(0.34 * sin(clock * 4.9))
     }
 
