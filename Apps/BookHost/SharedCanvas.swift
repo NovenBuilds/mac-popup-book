@@ -10,6 +10,7 @@ import PopupBookCore
     private var queue: MTLCommandQueue?
     private var pipeline: MTLRenderPipelineState?
     private var shown: MTLTexture?
+    private var shownPage: String?
     override var acceptsFirstResponder: Bool { true }
     init(composition: HostComposition) {
         super.init(frame: .zero, device: composition.device)
@@ -91,12 +92,12 @@ import PopupBookCore
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
     func draw(in view: MTKView) {
         guard let composition else { return }
-        let id = composition.coordinator.state.current
-        if let id {
+        if let id = composition.coordinator.state.current {
             composition.processes[id]?.setViewport(
                 width: Int(drawableSize.width), height: Int(drawableSize.height))
         }
         composition.clock.pulse()
+        let id = composition.coordinator.state.current
         let incoming = id.flatMap { composition.processes[$0]?.takeFrame() }
         guard let drawable = currentDrawable, let command = queue?.makeCommandBuffer() else {
             incoming?.release()
@@ -118,6 +119,7 @@ import PopupBookCore
                     sourceSize: MTLSize(width: shown.width, height: shown.height, depth: 1), to: shown,
                     destinationSlice: 0, destinationLevel: 0, destinationOrigin: MTLOrigin())
                 blit.endEncoding()
+                shownPage = id
             }
         }
         let pass = MTLRenderPassDescriptor()
@@ -126,7 +128,7 @@ import PopupBookCore
         pass.colorAttachments[0].storeAction = .store
         pass.colorAttachments[0].clearColor = clearColor
         if let encoder = command.makeRenderCommandEncoder(descriptor: pass) {
-            if let shown, let pipeline {
+            if shownPage == id, let shown, let pipeline {
                 encoder.setRenderPipelineState(pipeline)
                 encoder.setFragmentTexture(shown, index: 0)
                 var angle: Float =

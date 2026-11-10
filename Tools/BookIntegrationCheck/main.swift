@@ -71,7 +71,10 @@ extension PageProcessConnection: PageProcessPort {}
             let port = PageProcessConnection(
                 service: page.service, device: device, supervisor: self.supervisor, expectedPath: path,
                 restore: { [weak self] in (self?.publishedCheck?.checkpoints[page.id], nil) })
-            port.onCheckpoint = { [weak self] data in self?.publishedCheck?.checkpoints[page.id] = data }
+            port.onCheckpoint = { [weak self, weak port] data, _ in
+                guard let self, let port, self.ports[page.id] === port else { return }
+                self.publishedCheck?.checkpoints[page.id] = data
+            }
             port.setViewport(width: 1600, height: 1100)
             self.ports[page.id] = port
             if self.audition {
@@ -229,6 +232,9 @@ extension PageProcessConnection: PageProcessPort {}
                 since = now
             }
         case 5:
+            if let id = state.current, case .failed(let error) = state.pageStates[id] {
+                fail("手动重试失败：\(error.rawValue)")
+            }
             if state.phase == .idle, current?.ready == true {
                 print("手动重试通过")
                 coordinator.setActive(false)

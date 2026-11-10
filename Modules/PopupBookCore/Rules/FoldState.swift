@@ -23,21 +23,32 @@ public struct FoldState {
         if let raw = self.angle { target = Self.openness(angle: raw, full: angle) ?? target }
         return true
     }
-    public mutating func receive(_ sample: AngleSample) {
-        guard sample.timestamp.isFinite, sample.timestamp >= (lastSampleTime ?? -.infinity) else { return }
+    public mutating func invalidateSensor(resetSampleOrder: Bool = false) {
+        angle = nil
+        sensorAvailable = false
+        target = progress
+        missingSince = nil
+        if resetSampleOrder { lastSampleTime = nil }
+    }
+
+    @discardableResult public mutating func receive(_ sample: AngleSample) -> Bool {
+        guard sample.timestamp.isFinite, sample.timestamp >= (lastSampleTime ?? -.infinity) else {
+            return false
+        }
         lastSampleTime = sample.timestamp
         if let angle = sample.angle, let p = Self.openness(angle: angle, full: openAngle) {
             self.angle = angle
             target = p
             sensorAvailable = true
             missingSince = nil
-        } else {
-            if missingSince == nil { missingSince = sample.timestamp }
-            if sample.timestamp - (missingSince ?? sample.timestamp) >= 1 {
-                sensorAvailable = false
-                angle = nil
-            }
+            return true
         }
+        if missingSince == nil { missingSince = sample.timestamp }
+        if sample.timestamp - (missingSince ?? sample.timestamp) >= 1 {
+            sensorAvailable = false
+            angle = nil
+        }
+        return false
     }
     public mutating func advance(_ elapsed: Double) -> WorldContext {
         let dt = elapsed.isFinite ? clamp(elapsed, 0, 0.05) : 0

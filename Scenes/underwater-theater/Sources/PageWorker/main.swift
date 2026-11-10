@@ -103,7 +103,10 @@ import PopupBookCore
                     "current-shell", title: message("贝壳水流", "Shell current"), enabled: gameplay.canInteract,
                     shortcut: "s"),
             ],
-            sounds: sounds)
+            sounds: sounds,
+            hint: message(
+                "拖动蓝色水流珠，看水纹和鱼群跟着转向。",
+                "Drag the blue current bead and watch the ripples and fish turn with it."))
         if let notice = gameplay.notice {
             presentation.notice = noticeText(notice, zh: zh)
         }

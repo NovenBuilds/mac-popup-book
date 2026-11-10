@@ -93,9 +93,11 @@ public struct PagePresentation: Codable, Equatable, Sendable {
     public var checkpoint: Data?
     public var canSave: Bool
     public var notice: String?
+    public var hint: String?
     public init(
         caption: String = "", accessibility: String = "", actions: [PageAction] = [],
-        sounds: [PageSound] = [], checkpoint: Data? = nil, canSave: Bool = true, notice: String? = nil
+        sounds: [PageSound] = [], checkpoint: Data? = nil, canSave: Bool = true, notice: String? = nil,
+        hint: String? = nil
     ) {
         self.caption = caption
         self.accessibility = accessibility
@@ -104,6 +106,7 @@ public struct PagePresentation: Codable, Equatable, Sendable {
         self.checkpoint = checkpoint
         self.canSave = canSave
         self.notice = notice
+        self.hint = hint
     }
 }
 public struct PageStartup: Codable, Sendable {

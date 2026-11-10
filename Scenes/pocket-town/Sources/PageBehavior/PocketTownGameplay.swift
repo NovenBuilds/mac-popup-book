@@ -122,7 +122,15 @@ public struct PocketTownGameplay: Equatable, Sendable {
         case .atStation:
             return zh ? "口袋小镇" : "Pocket Town"
         case .running where trainIsMoving:
-            return zh ? "小火车正在走\(routeName)。" : "Train on \(routeName)."
+            if displayRoute == selectedRoute {
+                return zh ? "小火车正在走\(routeName)。" : "Train on \(routeName)."
+            }
+            let next =
+                selectedRoute == .riverside
+                ? (zh ? "河岸线" : "Riverside loop") : (zh ? "钟楼线" : "Clock tower loop")
+            return zh
+                ? "小火车正在走\(routeName)。下一圈走\(next)。"
+                : "Train on \(routeName). Next lap: \(next)."
         case .running:
             return zh ? "火车已暂停，打开到 90° 以上继续。" : "Train paused. Open past 90° to resume."
         }

@@ -36,3 +36,7 @@
 "页面资源缺失" = "Required page resources are missing";
 "页面返回了无效数据" = "The page returned invalid data";
 "页面进程暂不可用" = "The page process is unavailable";
+"铰链角度暂不可用，可改用手动展开。" = "The lid angle is unavailable. Switch to manual opening.";
+"改用手动" = "Use Manual";
+"「%@」未能打开，可从目录重试。" = "Could not open %@. Retry from the contents.";
+"%@（重试）" = "%@ (Retry)";

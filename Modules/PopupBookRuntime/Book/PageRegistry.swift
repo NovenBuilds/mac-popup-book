@@ -40,6 +40,7 @@ public struct BookState: Equatable {
     public init() {}
     public var current: String?
     public var target: String?
+    public var failedTarget: String?
     public var phase: PageTurnPhase = .idle
     public var progress = 1.0
     public var active = false

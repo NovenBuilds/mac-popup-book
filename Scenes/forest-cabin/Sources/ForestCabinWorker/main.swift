@@ -117,7 +117,9 @@ import SceneKitRendering
                 PageAction("gentle-touch", title: message("轻轻摸摸", "Gently pet"), shortcut: "m"),
                 PageAction("invite-closer", title: message("邀请靠近", "Come closer"), shortcut: "i"),
             ], sounds: sounds, checkpoint: canSave ? character.persistentState : nil, canSave: canSave,
-            notice: interactionNotice ?? notice)
+            notice: interactionNotice ?? notice,
+            hint: message(
+                "展开小屋，点按纸猫轻抚，或邀请它靠近。", "Open the cabin, then pet the paper cat or invite it closer."))
     }
     func render(into texture: MTLTexture, command: MTLCommandBuffer, context: WorldContext) throws {
         let size = CGSize(width: texture.width, height: texture.height)

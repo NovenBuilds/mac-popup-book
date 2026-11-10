@@ -123,7 +123,10 @@ import PopupBookCore
             sounds: sounds,
             checkpoint: RoomInComputerSave.checkpoint(from: gameplay, canSave: canSave),
             canSave: canSave,
-            notice: restoreNotice)
+            notice: restoreNotice,
+            hint: message(
+                "拖动房间前沿的拉条切换时段，点灯罩开关灯。",
+                "Drag the tab along the front edge to change the time, or click the lamp to toggle it."))
     }
 
     func render(into texture: MTLTexture, command: MTLCommandBuffer, context: WorldContext) throws {

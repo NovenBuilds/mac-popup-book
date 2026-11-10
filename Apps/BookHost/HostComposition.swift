@@ -18,8 +18,12 @@ extension PageProcessConnection: PageProcessPort {}
     var processes: [String: PageProcessConnection] = [:]
     let audio = PageAudioScopes()
     var stateErrors: [String: String] = [:]
+    var onStorageErrorChange: (() -> Void)?
     private var pageStates: PageStateRepository?
     private var position: ReadingPositionStore?
+    private var shuttingDown = false
+    private var shutdownFinished = false
+    private var shutdownCallbacks: [() -> Void] = []
     init() {
         root = Bundle.main.bundleURL
         preview = (Bundle.main.object(forInfoDictionaryKey: "BookPreview") as? Bool) == true
@@ -45,9 +49,9 @@ extension PageProcessConnection: PageProcessPort {}
                 ).path,
                 restore: { [weak self] in self?.stateRepository()?.restore(page) ?? (nil, nil) })
             self.processes[page.id] = port
-            port.onCheckpoint = { [weak self, weak port] data in
+            port.onCheckpoint = { [weak self, weak port] data, flush in
                 guard let self, let port, self.processes[page.id] === port else { return }
-                self.stateRepository()?.save(page, data: data)
+                self.stateRepository()?.save(page, data: data, flush: flush)
             }
             do {
                 let base = self.root.appendingPathComponent(
@@ -84,6 +88,7 @@ extension PageProcessConnection: PageProcessPort {}
                 ).appendingPathComponent("local.ssr.forestbook")
             }
             let repository = PageStateRepository(base: base)
+            repository.onErrorChange = { [weak self] in self?.onStorageErrorChange?() }
             pageStates = repository
             return repository
         } catch {
@@ -94,10 +99,32 @@ extension PageProcessConnection: PageProcessPort {}
     func pageError(_ id: String) -> String? {
         audio.error(for: id) ?? pageStates?.errors[id] ?? stateErrors[id]
     }
-    func shutdown() {
+    func shutdown(completion: @escaping () -> Void = {}) {
+        if shutdownFinished {
+            completion()
+            return
+        }
+        shutdownCallbacks.append(completion)
+        guard !shuttingDown else { return }
+        shuttingDown = true
         coordinator.stop()
-        let supervisor = self.supervisor
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { supervisor.shutdown() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [self] in
+            supervisor.shutdown()
+            if let pageStates {
+                pageStates.flushAll { [weak self] in self?.finishShutdown() }
+            } else {
+                finishShutdown()
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [self] in finishShutdown() }
+    }
+
+    private func finishShutdown() {
+        guard !shutdownFinished else { return }
+        shutdownFinished = true
+        let callbacks = shutdownCallbacks
+        shutdownCallbacks = []
+        for callback in callbacks { callback() }
     }
     private func positionStore() -> ReadingPositionStore? {
         if let position { return position }

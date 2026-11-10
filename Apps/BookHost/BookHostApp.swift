@@ -37,9 +37,9 @@ import SwiftUI
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let model else { return .terminateNow }
-        model.stop()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-            sender.reply(toApplicationShouldTerminate: true)
+        model.stop {
+            // The delegate must return terminateLater before the reply, even when already drained.
+            DispatchQueue.main.async { sender.reply(toApplicationShouldTerminate: true) }
         }
         return .terminateLater
     }
@@ -90,8 +90,8 @@ struct BookView: View {
                     VStack(spacing: 12) {
                         Text(L10n.text("此页暂不可用"))
                         Text(model.failureDetails).font(.caption)
-                        Button(L10n.text("重试")) {
-                            if let id = model.state.current { model.coordinator.open(id) }
+                        if let id = model.state.current, model.canRetry(id) {
+                            Button(L10n.text("重试")) { model.coordinator.open(id) }
                         }
                         Button(L10n.text("返回目录")) { model.directory = true }
                     }
@@ -171,18 +171,16 @@ struct BookView: View {
                             model.refresh()
                         })
                 ).toggleStyle(.switch).fixedSize()
-                Button(L10n.text("校准")) { _ = model.coordinator.calibrate() }.disabled(
-                    model.coordinator.fold.angle == nil || !model.coordinator.following)
+                if model.state.following && model.state.angle == nil {
+                    Button(L10n.text("改用手动")) { model.coordinator.setFollowing(false) }
+                } else if model.state.following {
+                    Button(L10n.text("校准")) { _ = model.coordinator.calibrate() }
+                }
             }
             Text(model.notice).font(.caption).lineLimit(2).frame(
                 maxWidth: .infinity, minHeight: 32, maxHeight: 32, alignment: .leading)
         }.padding(16).background(.thickMaterial, in: RoundedRectangle(cornerRadius: 18))
     }
-    private func isPageUnavailable(_ id: String) -> Bool {
-        if case .failed = model.state.pageStates[id] { return true }
-        return false
-    }
-
     private var directory: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(L10n.text("目录")).font(.title2)
@@ -191,8 +189,12 @@ struct BookView: View {
                     model.coordinator.open(page.id)
                     model.directory = false
                 } label: {
-                    Text(page.title())
-                }.disabled(isPageUnavailable(page.id))
+                    if model.canRetry(page.id), case .failed = model.state.pageStates[page.id] {
+                        Text(L10n.text("%@（重试）", page.title()))
+                    } else {
+                        Text(page.title())
+                    }
+                }.disabled(model.state.phase != .idle || !model.canRetry(page.id))
             }
             ForEach(model.composition.registry.unavailablePublishedIDs, id: \.self) { id in
                 Button(id) {}.disabled(true)

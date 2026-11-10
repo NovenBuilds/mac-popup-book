@@ -11,7 +11,9 @@ import PopupBookCore
         if case .pointer(let event) = input, event.kind != .cancel { state.select(event.x) }
     }
     func advance(_ context: WorldContext) throws -> PagePresentation {
-        PagePresentation(caption: "__PAGE_ID__ \(Int(state.value * 100))", accessibility: "__PAGE_ID__")
+        // Supply a localized hint for the first action; reserve notice for errors and feedback.
+        return PagePresentation(
+            caption: "__PAGE_ID__ \(Int(state.value * 100))", accessibility: "__PAGE_ID__")
     }
     func render(into texture: MTLTexture, command: MTLCommandBuffer, context: WorldContext) throws {
         let pass = MTLRenderPassDescriptor()

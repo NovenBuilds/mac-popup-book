@@ -279,6 +279,11 @@ final class PocketTownScene {
             body.addChildNode(support)
         }
 
+        let stationSign = box(width: 0.27, height: 0.055, depth: 0.012, color: color(0.90, 0.74, 0.38))
+        stationSign.position = SCNVector3(0, 0.216, 0.050)
+        stationSign.name = "hit-station"
+        body.addChildNode(stationSign)
+
         let stationHit = box(width: 0.62, height: 0.28, depth: 0.55, color: .clear)
         stationHit.name = "hit-station"
         stationHit.opacity = 0.001
@@ -334,7 +339,8 @@ final class PocketTownScene {
             PocketTownTracks.switchCenter.x - 0.09, 0.04, -0.20)
         let base = box(width: 0.16, height: 0.03, depth: 0.2, color: color(0.42, 0.35, 0.28))
         switchNode.addChildNode(base)
-        switchBlade = box(width: 0.06, height: 0.015, depth: 0.22, color: color(0.76, 0.58, 0.2))
+        switchBlade = box(width: 0.075, height: 0.02, depth: 0.22, color: color(0.94, 0.69, 0.25))
+        switchBlade.name = "hit-switch"
         switchBlade.position.y = 0.03
         switchNode.addChildNode(switchBlade)
         signalLamp.position = SCNVector3(0.10, 0.04, 0.04)
@@ -446,7 +452,7 @@ final class PocketTownScene {
         camera.zFar = 20
         let cameraNode = SCNNode()
         cameraNode.camera = camera
-        cameraNode.position = SCNVector3(1.65, 4.3, 7.2)
+        cameraNode.position = SCNVector3(1.28, 5.75, 7.2)
         cameraNode.look(at: SCNVector3(0, 0, 0))
         scene.rootNode.addChildNode(cameraNode)
         renderer.pointOfView = cameraNode

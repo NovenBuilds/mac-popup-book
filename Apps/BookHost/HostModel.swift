@@ -20,6 +20,11 @@ import PopupBookRuntime
         if let id = state.current, case .failed = state.pageStates[id] { return true }
         return false
     }
+    func canRetry(_ id: String) -> Bool {
+        guard case .failed(let error) = state.pageStates[id] else { return true }
+        return error != .missingResources && error != .incompatibleContract && error != .invalidDescriptor
+    }
+
     var failureDetails: String {
         guard let id = state.current, case .failed(let error) = state.pageStates[id] else { return "" }
         let key: String
@@ -38,11 +43,17 @@ import PopupBookRuntime
         if let id = state.current, let message = composition.pageError(id) {
             return message
         }
+        if let id = state.failedTarget, id != state.current,
+            let page = composition.registry.pages.first(where: { $0.id == id })
+        {
+            return L10n.text("「%@」未能打开，可从目录重试。", page.title())
+        }
         if let notice = state.output.notice { return notice }
-        if coordinator.following, coordinator.fold.angle == nil { return L10n.text("铰链角度暂不可用") }
-        return coordinator.following ? L10n.text("靠近看它回应，按住缓慢移动来轻抚") : L10n.text("手动预览")
+        if state.following && state.angle == nil { return L10n.text("铰链角度暂不可用，可改用手动展开。") }
+        return state.output.hint ?? ""
     }
     init() {
+        composition.onStorageErrorChange = { [weak self] in self?.objectWillChange.send() }
         coordinator.onChange = { [weak self] in self?.refresh() }
         coordinator.onPageSelected = { [weak self] id in self?.composition.saveLastPage(id) }
         refresh()
@@ -60,16 +71,16 @@ import PopupBookRuntime
             next.following != state.following || next.soundEnabled != state.soundEnabled
                 || next.manualProgress != state.manualProgress || next.openAngle != state.openAngle
                 || next.phase == .turning || now - lastRefresh >= 0.1 || next.phase != state.phase
-                || next.current != state.current
+                || next.current != state.current || next.failedTarget != state.failedTarget
                 || next.output.caption != state.output.caption || next.pageStates != state.pageStates
                 || next.active != state.active
         else { return }
         lastRefresh = now
         if state != next { state = next }
     }
-    func stop() {
+    func stop(completion: @escaping () -> Void = {}) {
         lifecycle?.stop()
         lifecycle = nil
-        composition.shutdown()
+        composition.shutdown(completion: completion)
     }
 }

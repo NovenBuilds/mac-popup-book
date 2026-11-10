@@ -20,10 +20,13 @@ import PopupBookCore
         return try Data(contentsOf: path)
     }
     public func save(_ data: Data, previous: Data?) throws {
+        try Self.write(data, previous: previous, to: url)
+    }
+    nonisolated static func write(_ data: Data, previous: Data?, to url: URL) throws {
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         // The caller supplies only a validated snapshot, never the possibly corrupt primary file.
-        if let previous { try previous.write(to: backupURL, options: .atomic) }
+        if let previous { try previous.write(to: url.appendingPathExtension("backup"), options: .atomic) }
         try data.write(to: url, options: .atomic)
     }
 }

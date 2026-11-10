@@ -30,6 +30,10 @@ public struct AngleSample: Sendable {
         self.timestamp = timestamp
     }
 }
+public enum BookInputState: String, Codable, Sendable {
+    case tracking, unavailable, manual
+}
+
 public struct WorldContext: Sendable, Codable {
     public var progress: Double
     public var clock: Double
@@ -37,10 +41,11 @@ public struct WorldContext: Sendable, Codable {
     public var stableDuration: Double
     public var wallDate: Date?
     public var lidAngle: Double?
+    public var inputState: BookInputState?
     public var pageReady: Bool?
     public init(
         progress: Double, clock: Double, deltaTime: Double, stableDuration: Double, wallDate: Date? = nil,
-        lidAngle: Double? = nil
+        lidAngle: Double? = nil, inputState: BookInputState? = nil
     ) {
         self.progress = progress
         self.clock = clock
@@ -48,6 +53,7 @@ public struct WorldContext: Sendable, Codable {
         self.stableDuration = stableDuration
         self.wallDate = wallDate
         self.lidAngle = lidAngle
+        self.inputState = inputState
     }
 }
 public enum CharacterEvent: Equatable, Sendable { case restingInside, appearing, outside, returningInside }

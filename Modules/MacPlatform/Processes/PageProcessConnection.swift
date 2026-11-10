@@ -14,12 +14,37 @@ public struct SharedPageFrame: @unchecked Sendable {
     public let release: @MainActor @Sendable () -> Void
 }
 
+/// A final reply and its timeout race for the same generation. Only the first valid completion wins.
+struct PageCheckpointBuffer {
+    private var generation = 0
+    private var latest: Data?
+
+    mutating func record(_ data: Data?, canSave: Bool) -> Data? {
+        if !canSave { latest = nil }
+        guard canSave, let data else { return nil }
+        latest = data
+        return data
+    }
+
+    mutating func beginFinal() -> Int {
+        generation += 1
+        return generation
+    }
+
+    mutating func completeFinal(_ token: Int, data: Data?) -> Data? {
+        guard generation == token else { return nil }
+        generation += 1
+        if let data, data.count <= 1_000_000 { latest = data }
+        return latest
+    }
+}
+
 /// Owns a single bundled worker. Never blocks the main thread awaiting a reply.
 @MainActor public final class PageProcessConnection {
     public var onReady: (() -> Void)?
     public var onFrame: ((PagePresentation) -> Void)?
     public var onFailure: ((PageError) -> Void)?
-    public var onCheckpoint: ((Data) -> Void)?
+    public var onCheckpoint: ((Data, Bool) -> Void)?
     public private(set) var pid: Int32 = 0
     public private(set) var ready = false
     private let supervisor: PageProcessSupervisor
@@ -33,16 +58,16 @@ public struct SharedPageFrame: @unchecked Sendable {
     private var free = Set(0..<3)
     private var textures: [MTLTexture] = []
     private var pending: (Int, Int, Double, String)?
-    private var submittedClock: Double?
     private var sequence = 0
     private var acceptedSequence = 0
+    private var discardedThroughSequence = 0
     private var desiredSize = (width: 2880, height: 1920)
     private var currentSize = (width: 2880, height: 1920)
     private var resizing = false
     private var lastResize = 0.0
     private var live = false
     private var processPath: String?
-    private var checkpoint: Data?
+    private var checkpoints = PageCheckpointBuffer()
     public init(
         service: String, device: MTLDevice, supervisor: PageProcessSupervisor, expectedPath: String,
         restore: @escaping () -> (Data?, Data?)
@@ -168,6 +193,10 @@ public struct SharedPageFrame: @unchecked Sendable {
                 guard let self, self.live, self.epoch == request.epoch,
                     self.surfaceGeneration == request.surfaceGeneration
                 else { return }
+                if request.sequence <= self.discardedThroughSequence {
+                    self.free.insert(slot)
+                    return
+                }
                 guard data.count < 2_100_000,
                     let frame = try? JSONDecoder().decode(PageFrameReply.self, from: data),
                     frame.request.epoch == request.epoch, frame.request.sequence == request.sequence,
@@ -193,9 +222,9 @@ public struct SharedPageFrame: @unchecked Sendable {
                 }
                 if let pending = self.pending { self.free.insert(pending.0) }
                 self.pending = (slot, request.sequence, sent, frame.output.caption)
-                if frame.output.canSave, let data = frame.output.checkpoint, data != self.checkpoint {
-                    self.checkpoint = data
-                    self.onCheckpoint?(data)
+                if let data = self.checkpoints.record(frame.output.checkpoint, canSave: frame.output.canSave)
+                {
+                    self.onCheckpoint?(data, false)
                 }
                 self.onFrame?(frame.output)
             }
@@ -245,13 +274,26 @@ public struct SharedPageFrame: @unchecked Sendable {
     }
     public func pause() {
         guard live, let proxy = connection?.remoteObjectProxy as? PageService else { return }
-        proxy.suspend(epoch) { [weak self] data in
-            DispatchQueue.main.async {
-                guard let self, self.live, let data, data.count <= 1_000_000 else { return }
-                self.onCheckpoint?(data)
-            }
+        discardedThroughSequence = sequence
+        if let pending { free.insert(pending.0) }
+        pending = nil
+        let submitted = sequence
+        let flush = checkpointCompletion { [weak self] in self?.live == true && self?.sequence == submitted }
+        proxy.suspend(epoch) { data in DispatchQueue.main.async { flush(data) } }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { flush(nil) }
+    }
+
+    private func checkpointCompletion(
+        whileCurrent: @escaping @MainActor () -> Bool
+    ) -> @MainActor (Data?) -> Void {
+        let token = checkpoints.beginFinal()
+        return { [weak self] data in
+            guard let self, whileCurrent(), let checkpoint = self.checkpoints.completeFinal(token, data: data)
+            else { return }
+            self.onCheckpoint?(checkpoint, true)
         }
     }
+
     public func stop() { close(terminating: false) }
     public func terminate() { close(terminating: true) }
     private func close(terminating: Bool) {
@@ -263,9 +305,10 @@ public struct SharedPageFrame: @unchecked Sendable {
         if terminating, let identity { supervisor.retire(service, identity: identity) }
         c?.interruptionHandler = nil
         c?.invalidationHandler = nil
-        (c?.remoteObjectProxy as? PageService)?.finish(epoch) { [weak self] data in
+        let flush = checkpointCompletion { true }
+        (c?.remoteObjectProxy as? PageService)?.finish(epoch) { data in
             DispatchQueue.main.async {
-                if let data, data.count <= 1_000_000 { self?.onCheckpoint?(data) }
+                flush(data)
                 c?.invalidate()
             }
         }
@@ -275,6 +318,7 @@ public struct SharedPageFrame: @unchecked Sendable {
         connection = nil
         let supervisor = self.supervisor
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            flush(nil)
             c?.invalidate()
             if terminating, let identity { supervisor.terminate(identity) }
         }

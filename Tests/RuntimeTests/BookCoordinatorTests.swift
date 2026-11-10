@@ -78,11 +78,12 @@ private func descriptor(_ id: String, version: Int = 1) -> Data {
         input.callbacks[0](AngleSample(angle: 90, timestamp: clock.now))
         port.onReady?()
         clock.step(0.5)
-        let target = coordinator.fold.target
+        XCTAssertEqual(port.contexts.last?.inputState, .tracking)
         clock.step(0.7)
         XCTAssertFalse(coordinator.fold.sensorAvailable)
         XCTAssertNil(coordinator.fold.angle)
-        XCTAssertEqual(coordinator.fold.target, target)
+        XCTAssertEqual(coordinator.fold.target, coordinator.fold.progress)
+        XCTAssertEqual(port.contexts.last?.inputState, .unavailable)
         input.callbacks[0](AngleSample(angle: 100, timestamp: clock.now))
         clock.step(0.1)
         XCTAssertTrue(coordinator.fold.sensorAvailable)
@@ -90,9 +91,20 @@ private func descriptor(_ id: String, version: Int = 1) -> Data {
         XCTAssertEqual(port.contexts.last?.lidAngle, 100)
         XCTAssertTrue(port.contexts.contains { $0.pageReady == false })
         XCTAssertEqual(port.contexts.last?.pageReady, true)
+        let beforeManual = coordinator.state.progress
         coordinator.setFollowing(false)
         clock.step(0.1)
+        XCTAssertEqual(coordinator.state.manualProgress, beforeManual)
+        XCTAssertEqual(coordinator.state.progress, beforeManual)
         XCTAssertNil(port.contexts.last?.lidAngle)
+        XCTAssertEqual(port.contexts.last?.inputState, .manual)
+        coordinator.setFollowing(true)
+        input.callbacks[0](AngleSample(angle: 70, timestamp: clock.now))
+        clock.step(0.1)
+        XCTAssertEqual(port.contexts.last?.inputState, .unavailable)
+        input.callbacks[1](AngleSample(angle: 95, timestamp: clock.now))
+        clock.step(0.1)
+        XCTAssertEqual(port.contexts.last?.lidAngle, 95)
     }
     func testRegistryQuarantinesBadAndDuplicateEntries() {
         let registry = PageRegistry(
@@ -208,6 +220,9 @@ private func descriptor(_ id: String, version: Int = 1) -> Data {
         XCTAssertEqual(c.state.pageStates["red"], .failed(.startupTimeout))
         XCTAssertEqual(ports.count, 1)
         c.open("red")
+        clock.step(4)
+        XCTAssertEqual(c.state.phase, .preparing)
+        XCTAssertEqual(c.state.pageStates["red"], .starting)
         ports.last!.onReady?()
         clock.step(0.5)
         ports.last!.automaticFrames = false
@@ -300,11 +315,89 @@ private func descriptor(_ id: String, version: Int = 1) -> Data {
         clock.step(0.5)
         c.open("blue")
         ports["blue"]!.onReady?()
-        clock.step(1)
+        clock.step(4.2)
         XCTAssertEqual(c.state.phase, .collapsing)
+        XCTAssertFalse(ports["red"]!.stopped)
         c.setManual(1)
         clock.step(1.4)
         XCTAssertEqual(c.state.current, "blue")
         XCTAssertEqual(c.state.phase, .idle)
+    }
+}
+
+extension BookCoordinatorTests {
+    func testTargetFailureAfterReadyRollsBackAtEveryTurnStage() {
+        for (delay, phase) in [(0.1, PageTurnPhase.collapsing), (0.4, .turning), (0.8, .expanding)] {
+            let clock = TestDisplay()
+            var ports: [String: TestPort] = [:]
+            let ids = ["red", "blue", "green"]
+            let c = BookCoordinator(
+                registry: PageRegistry(descriptors: ids.map { descriptor($0) }, published: ids),
+                source: TestAngle(), clock: clock, settings: TestPreferences()
+            ) {
+                let port = TestPort()
+                ports[$0.id] = port
+                return port
+            }
+            var selected: [String] = []
+            c.onPageSelected = { selected.append($0) }
+            c.setFollowing(false)
+            c.setActive(true)
+            ports["red"]!.onReady?()
+            clock.step(0.5)
+            c.open("blue")
+            let failed = ports["blue"]!
+            failed.onReady?()
+            clock.step(delay)
+            XCTAssertEqual(c.state.phase, phase)
+            XCTAssertEqual(selected, ["red"])
+            failed.onFailure?(.unavailable)
+            failed.onFrame?(PagePresentation(caption: "stale"))
+            clock.step(0.5)
+            XCTAssertEqual(c.state.phase, .idle)
+            XCTAssertEqual(c.state.current, "red")
+            XCTAssertEqual(c.state.failedTarget, "blue")
+            XCTAssertEqual(selected, ["red"])
+            XCTAssertFalse(ports["red"]!.stopped)
+            XCTAssertTrue(failed.stopped)
+            XCTAssertNotEqual(c.state.output.caption, "stale")
+            c.open("green")
+            ports["green"]!.onReady?()
+            clock.step(1.3)
+            XCTAssertEqual(selected, ["red", "green"])
+            XCTAssertTrue(ports["red"]!.stopped)
+        }
+    }
+
+    func testExpansionWaitsForFirstFrameBeforeCommittingAndReleasingOldPage() {
+        let clock = TestDisplay()
+        var ports: [String: TestPort] = [:]
+        let ids = ["red", "blue"]
+        let c = BookCoordinator(
+            registry: PageRegistry(descriptors: ids.map { descriptor($0) }, published: ids),
+            source: TestAngle(), clock: clock, settings: TestPreferences()
+        ) {
+            let port = TestPort()
+            ports[$0.id] = port
+            return port
+        }
+        var selected: [String] = []
+        c.onPageSelected = { selected.append($0) }
+        c.setActive(true)
+        ports["red"]!.onReady?()
+        clock.step(0.5)
+        c.open("blue")
+        ports["blue"]!.automaticFrames = false
+        ports["blue"]!.onReady?()
+        clock.step(1.2)
+        XCTAssertEqual(c.state.phase, .expanding)
+        XCTAssertEqual(selected, ["red"])
+        XCTAssertTrue(ports["red"]!.paused)
+        XCTAssertFalse(ports["red"]!.stopped)
+        ports["blue"]!.onFrame?(PagePresentation(caption: "ready"))
+        clock.step(0.1)
+        XCTAssertEqual(c.state.phase, .idle)
+        XCTAssertEqual(selected, ["red", "blue"])
+        XCTAssertTrue(ports["red"]!.stopped)
     }
 }

@@ -401,9 +401,9 @@ final class UnderwaterTheaterScene {
     }
 
     private func buildFlowVisuals(into scene: SCNScene) {
-        flowBead = SCNNode(geometry: SCNSphere(radius: 0.055))
-        flowBead.geometry?.firstMaterial?.diffuse.contents = color(0.62, 0.9, 0.95)
-        flowBead.geometry?.firstMaterial?.transparency = 0.55
+        flowBead = SCNNode(geometry: SCNSphere(radius: 0.072))
+        flowBead.geometry?.firstMaterial?.diffuse.contents = color(0.24, 0.78, 0.89)
+        flowBead.geometry?.firstMaterial?.transparency = 0.9
         flowBead.geometry?.firstMaterial?.lightingModel = .constant
         scene.rootNode.addChildNode(flowBead)
 
@@ -496,12 +496,13 @@ final class UnderwaterTheaterScene {
         for node in coralFolds { setForwardFold(node, amount: folding.coral) }
         wildlife?.update(layer: gameplay.reef.layer, clock: clock)
 
-        let sway = CGFloat(gameplay.flowStrength * 0.22)
+        let flowScene = gameplay.flowPoint
+        let horizontalFlow = min(1, max(-1, (flowScene.x - UnderwaterTheaterTracks.frontWater.x) / 0.5))
+        let sway = -horizontalFlow * gameplay.flowStrength * 0.30
         for (index, blade) in seaweedFolds.enumerated() {
             setFold(blade, amount: folding.seaweed)
-            blade.eulerAngles.z =
-                CGFloat(sin(clock * 1.6 + Double(index) * 0.8) * 0.08 * folding.seaweed) + sway
-                * (index.isMultiple(of: 2) ? 1 : -1)
+            let drift = sin(clock * 1.6 + Double(index) * 0.8) * 0.08
+            blade.eulerAngles.z = CGFloat((drift + sway) * folding.seaweed)
         }
 
         for (index, plane) in shimmerPlanes.enumerated() {
@@ -509,15 +510,16 @@ final class UnderwaterTheaterScene {
             plane.position.x = CGFloat(Double(index % 4) * 0.64 - 1 + 0.12 * sin(clock * 0.7 + Double(index)))
         }
 
-        let flowScene = gameplay.flowPoint
         let showFlow = gameplay.canInteract && gameplay.flowStrength > 0.04
         let wake =
             UnderwaterTheaterSteering.constrain(
                 pathAnchor: UnderwaterTheaterTracks.frontWater,
                 offset: flowScene - UnderwaterTheaterTracks.frontWater) + UnderwaterTheaterTracks.frontWater
-        flowBead.isHidden = !showFlow
-        flowBead.position = SCNVector3(wake.x, 0.18, wake.y)
-        flowBead.opacity = CGFloat(0.55 + 0.45 * gameplay.flowStrength)
+        flowBead.isHidden = !gameplay.canInteract
+        flowBead.position = SCNVector3(wake.x, 0.105, wake.y)
+        flowBead.opacity = CGFloat(0.8 + 0.2 * gameplay.flowStrength)
+        let pulse = 1 + 0.12 * sin(clock * 3) * (gameplay.dragging ? 0 : 1)
+        flowBead.scale = SCNVector3(pulse, pulse, pulse)
 
         let school = gameplay.schoolCenter()
         let distance = hypot(flowScene.x - school.position.x, flowScene.y - school.position.y)
@@ -558,7 +560,7 @@ final class UnderwaterTheaterScene {
                 origin.x + delta.x * t, 0.16 + t * 0.02, origin.y + delta.y * t)
             streak.eulerAngles.y = CGFloat(heading)
             streak.scale.z = CGFloat(0.5 + strength * 0.8)
-            streak.opacity = CGFloat(0.2 + strength * 0.4)
+            streak.opacity = CGFloat(0.25 + strength * 0.55)
         }
     }
 

@@ -46,8 +46,13 @@ import PopupBookCore
         self.context = context
         let folding = PocketTownFolding(progress: context.progress)
         let wasRunning = gameplay.trainIsRunning
-        // Without a live angle, the slider uses the default 35°–105° range.
-        let angle = context.lidAngle ?? (35 + 70 * context.progress)
+        let angle: Double?
+        switch context.inputState {
+        case .tracking: angle = context.lidAngle
+        case .unavailable: angle = nil
+        case .manual: angle = 35 + 70 * context.progress
+        case nil: angle = context.lidAngle ?? (35 + 70 * context.progress)
+        }
         let arrived = gameplay.advance(
             bookProgress: context.progress, clock: context.clock, deltaTime: context.deltaTime,
             folding: folding, lidAngle: context.pageReady == false ? 0 : angle)
@@ -87,9 +92,15 @@ import PopupBookCore
                     "town-depart", title: message("发车", "Depart"),
                     enabled: gameplay.canInteract && !gameplay.trainIsRunning, shortcut: "d"),
             ],
-            sounds: sounds)
+            sounds: sounds,
+            hint: message(
+                "拨道岔选下一圈路线。打开超过 90° 自动发车，也可以点车站发车。",
+                "Set the switch for the next lap. Open past 90° or click the station to depart."))
         if let notice = gameplay.notice {
             presentation.notice = noticeText(notice, zh: zh)
+        } else if context.inputState == .unavailable && gameplay.trainIsRunning && !gameplay.trainIsMoving {
+            presentation.notice = message(
+                "铰链读数暂不可用，列车等待读数恢复。", "The train is waiting for the lid angle to return.")
         }
         return presentation
     }

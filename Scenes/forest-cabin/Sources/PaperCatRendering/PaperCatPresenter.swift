@@ -117,7 +117,7 @@ import SceneKitRendering
             a.z + (b.z - a.z) * p + (c.z - b.z) * CGFloat(pose.roaming) * p)
         let visibleOutside =
             (pose.mood == .stretching || pose.mood == .walking) ? max(0.16, pose.outside) : pose.outside
-        let appear = smoothstep(0.03, 0.22, visibleOutside) * smoothstep(0.42, 0.62, context.progress)
+        let appear = smoothstep(0.03, 0.19, visibleOutside) * smoothstep(0.42, 0.62, context.progress)
         let stretchFade = pose.mood == .stretching ? smoothstep(0, 0.25, pose.moodTime) : 1
         cat.opacity = CGFloat(appear * stretchFade)
         cat.isHidden = appear * stretchFade < 0.005
@@ -137,9 +137,9 @@ import SceneKitRendering
                 ? sin(pose.moodTime * 4) * 0.12
                 : grooming
                     ? -0.24 + sin(pose.moodTime * 5) * 0.09
-                    : gaze * 0.36 + pose.touchBlend * 0.24 + sin(context.clock * 0.7) * 0.025)
+                    : gaze * 0.36 + pose.touchBlend * 0.32 + sin(context.clock * 0.7) * 0.025)
         head.position.x = CGFloat(-0.04 + gaze * 0.10)
-        head.position.y = CGFloat(0.84 - pose.touchBlend * 0.08 + pose.acknowledgement * 0.06)
+        head.position.y = CGFloat(0.84 - pose.touchBlend * 0.10 + pose.acknowledgement * 0.09)
         head.eulerAngles.y = CGFloat(gaze * 0.3)
         tail.eulerAngles.z = CGFloat(sin(context.clock * 1.8) * pose.tailEnergy * 0.4)
         for (index, ear) in ears.enumerated() {

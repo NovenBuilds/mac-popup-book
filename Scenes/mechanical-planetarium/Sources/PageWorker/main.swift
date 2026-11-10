@@ -105,7 +105,10 @@ import PopupBookCore
             actions: actions,
             sounds: sounds,
             checkpoint: savedState(),
-            canSave: canSave)
+            canSave: canSave,
+            hint: message(
+                "拖动黄铜曲柄转动天体，点月相按钮停在观察点。",
+                "Drag the brass crank, or click a Moon phase to stop at that view."))
         if let notice = gameplay.notice {
             presentation.notice = noticeText(notice, zh: zh)
         } else if !canSave {

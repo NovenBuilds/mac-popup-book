@@ -170,6 +170,9 @@ final class MechanicalPlanetariumScene {
         let plinth = box(width: 3.6, height: 0.06, depth: 2.2, color: color(0.12, 0.14, 0.28))
         plinth.position = SCNVector3(0, -0.04, 0)
         scene.rootNode.addChildNode(plinth)
+        let crease = box(width: 0.012, height: 0.002, depth: 2.14, color: color(0.34, 0.37, 0.51))
+        crease.position.y = -0.009
+        scene.rootNode.addChildNode(crease)
         let labelPlane = box(width: 1.35, height: 0.02, depth: 0.26, color: color(0.55, 0.42, 0.2))
         labelPlane.position = SCNVector3(0, 0.01, 0.92)
         scene.rootNode.addChildNode(labelPlane)
@@ -341,8 +344,9 @@ final class MechanicalPlanetariumScene {
         rod.position = SCNVector3(0, 0.09, 0.062)
         crankPivot.addChildNode(rod)
 
-        let knobGeometry = SCNSphere(radius: 0.04)
-        knobGeometry.firstMaterial?.diffuse.contents = color(0.78, 0.6, 0.3)
+        let knobGeometry = SCNSphere(radius: 0.057)
+        knobGeometry.firstMaterial?.diffuse.contents = color(0.98, 0.78, 0.39)
+        knobGeometry.firstMaterial?.emission.contents = color(0.15, 0.09, 0.024)
         let knob = SCNNode(geometry: knobGeometry)
         knob.position = SCNVector3(0, 0.09, 0.025)
         rod.addChildNode(knob)
@@ -365,7 +369,7 @@ final class MechanicalPlanetariumScene {
             let button = box(width: 0.25, height: 0.035, depth: 0.19, color: color(0.74, 0.52, 0.26))
             button.name = name
             button.position = SCNVector3(x, 0.022, 0.87)
-            let inset = box(width: 0.218, height: 0.008, depth: 0.157, color: color(0.86, 0.69, 0.43))
+            let inset = box(width: 0.218, height: 0.008, depth: 0.157, color: color(0.96, 0.80, 0.49))
             inset.position.y = 0.019
             inset.name = name
             button.addChildNode(inset)
@@ -389,7 +393,7 @@ final class MechanicalPlanetariumScene {
         text.firstMaterial?.lightingModel = .constant
         let node = SCNNode(geometry: text)
         let (min, max) = node.boundingBox
-        let scale = 0.076 / Swift.max(1, max.y - min.y)
+        let scale = 0.108 / Swift.max(1, max.y - min.y)
         node.pivot = SCNMatrix4MakeTranslation((min.x + max.x) / 2, (min.y + max.y) / 2, 0)
         node.scale = SCNVector3(scale, scale, scale)
         node.position.y = 0.025
@@ -508,7 +512,14 @@ final class MechanicalPlanetariumScene {
             gear.position.y = CGFloat(0.07 + (index == 0 ? 0.17 : 0.12) * folding.brackets)
             gear.eulerAngles.z = CGFloat(mechanism.crankAngle * (index == 0 ? 1 : -1.5))
         }
-        for button in controlButtons { button.isHidden = !gameplay.canInteract }
+        let activePhase = gameplay.isPaused ? mechanism.nearestObservationIndex() : nil
+        for (index, button) in controlButtons.enumerated() {
+            button.isHidden = !gameplay.canInteract
+            if index >= 3 {
+                button.childNodes.first?.geometry?.firstMaterial?.diffuse.contents =
+                    activePhase == index - 3 ? color(1, 0.93, 0.64) : color(0.96, 0.80, 0.49)
+            }
+        }
         pauseMark.isHidden = gameplay.isPaused
         resumeMark.isHidden = !gameplay.isPaused
         for node in orbitFolds {

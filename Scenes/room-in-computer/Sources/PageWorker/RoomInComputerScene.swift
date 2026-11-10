@@ -28,6 +28,7 @@ final class RoomInComputerScene {
     private var ambientNode = SCNNode()
     private var keyLight = SCNNode()
     private var lastHeading = 0.0
+    private var stripThumb = SCNNode()
     private var lampPool = SCNNode()
     private let morningPanes = SCNNode()
 
@@ -53,7 +54,7 @@ final class RoomInComputerScene {
         let name = hit.node.name ?? hit.node.parent?.name ?? ""
         switch name {
         case "hit-strip-drag":
-            let localX = Double(hit.localCoordinates.x)
+            let localX = Double(hit.worldCoordinates.x)
             let mapped = (localX + Self.stripHalfWidth) / Self.stripWidth
             return .dragX(max(0, min(1, mapped)))
         case "hit-dock-morning":
@@ -131,6 +132,9 @@ final class RoomInComputerScene {
         floorNode = box(width: 2.2, height: 0.03, depth: 1.35, color: color(0.76, 0.62, 0.47))
         floorNode.position = SCNVector3(0, -0.01, 0.05)
         scene.rootNode.addChildNode(floorNode)
+        let crease = box(width: 2.13, height: 0.002, depth: 0.009, color: color(0.53, 0.40, 0.29))
+        crease.position = SCNVector3(0, 0.006, -0.59)
+        scene.rootNode.addChildNode(crease)
         let rug = box(width: 0.69, height: 0.004, depth: 0.29, color: color(0.72, 0.39, 0.27))
         rug.position = SCNVector3(-0.42, 0.007, 0.32)
         scene.rootNode.addChildNode(rug)
@@ -288,14 +292,24 @@ final class RoomInComputerScene {
     private func buildTimeStrip(on scene: SCNScene) {
         let stripRoot = SCNNode()
         stripRoot.position = SCNVector3(0, 0.02, 0.72)
-        let paper = box(width: 1.04, height: 0.002, depth: 0.14, color: color(0.94, 0.9, 0.82))
+        let paper = box(width: 1.04, height: 0.012, depth: 0.14, color: color(0.32, 0.43, 0.44))
+        paper.name = "hit-strip-drag"
         stripRoot.addChildNode(paper)
-        for (name, x, label) in [
-            ("hit-dock-morning", -0.38, "晨"),
-            ("hit-dock-afternoon", 0, "午"),
-            ("hit-dock-evening", 0.38, "夜"),
+        let track = box(width: 0.80, height: 0.004, depth: 0.015, color: color(0.94, 0.84, 0.65))
+        track.position = SCNVector3(0, 0.009, 0.038)
+        track.name = "hit-strip-drag"
+        stripRoot.addChildNode(track)
+        stripThumb = box(width: 0.09, height: 0.025, depth: 0.05, color: color(0.97, 0.72, 0.37))
+        stripThumb.position = SCNVector3(0, 0.023, 0.038)
+        stripThumb.name = "hit-strip-drag"
+        stripRoot.addChildNode(stripThumb)
+        for (name, x, tint) in [
+            ("hit-dock-morning", -0.38, color(0.96, 0.72, 0.42)),
+            ("hit-dock-afternoon", 0, color(0.79, 0.88, 0.92)),
+            ("hit-dock-evening", 0.38, color(0.55, 0.65, 0.87)),
         ] {
-            let tick = box(width: 0.08, height: 0.04, depth: 0.04, color: color(0.72, 0.66, 0.5))
+            let tick = box(width: 0.08, height: 0.04, depth: 0.04, color: tint)
+            tick.name = name
             tick.position = SCNVector3(x, 0.03, 0)
             let hit = box(width: 0.16, height: 0.12, depth: 0.16, color: .clear)
             hit.name = name
@@ -303,7 +317,6 @@ final class RoomInComputerScene {
             hit.position = SCNVector3(0, 0.04, 0)
             tick.addChildNode(hit)
             stripRoot.addChildNode(tick)
-            _ = label
         }
         let dragHit = box(width: 1.04, height: 0.12, depth: 0.14, color: .clear)
         dragHit.name = "hit-strip-drag"
@@ -387,6 +400,7 @@ final class RoomInComputerScene {
         guestAppearance.root.eulerAngles.y = CGFloat(lastHeading)
         guestAnchor.isHidden = folding.guestUpright == 0
 
+        stripThumb.position.x = CGFloat(0.76 * gameplay.lightForTime - 0.38)
         applyLighting(time: gameplay.lightForTime, folding: folding, lampEnabled: lampOn)
     }
 
@@ -406,8 +420,9 @@ final class RoomInComputerScene {
 
         windowGlow.opacity = CGFloat(0.25 + 0.65 * max(morning, afternoon) * open)
         let windowColor = blend(
-            color(0.95, 0.88, 0.55), color(0.75, 0.85, 0.95), t: afternoon / (morning + afternoon + 0.001))
-        windowGlow.geometry?.firstMaterial?.diffuse.contents = windowColor
+            color(0.99, 0.79, 0.47), color(0.72, 0.88, 0.99), t: afternoon / (morning + afternoon + 0.001))
+        windowGlow.geometry?.firstMaterial?.diffuse.contents =
+            blend(windowColor, color(0.21, 0.28, 0.53), t: evening)
 
         ambientNode.light?.intensity = CGFloat(180 + 220 * open * (0.35 + afternoon * 0.5 + morning * 0.4))
         keyLight.light?.intensity = CGFloat(320 * open * (0.4 + morning * 0.45 + afternoon * 0.55))

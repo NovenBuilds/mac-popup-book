@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build the host and selected independent page packages, then sign each service inside-out."""
-import argparse, json, pathlib, plistlib, shutil, subprocess, uuid
+import argparse, json, os, pathlib, plistlib, shutil, subprocess, uuid
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 def command(args, cwd=ROOT):
@@ -37,8 +37,14 @@ def build(args):
     command(['swift', 'build', '-c', 'release', '--product', host_product])
     bin = binary_path(ROOT)
     name = ('后台验收-' if args.background_check else '场景预览-') + (ids[0] if len(ids) == 1 else 'integration') + '.app' if args.preview else '开合之间.app'
-    target = ROOT / 'build' / name
-    stage = ROOT / 'build' / ('book-stage-' + uuid.uuid4().hex + '.app')
+    output = args.distribution_dir or ROOT / 'build'
+    output.mkdir(parents=True, exist_ok=True)
+    target = output / name
+    stage = output / ('book-stage-' + uuid.uuid4().hex + '.app')
+    sign = ['codesign', '--force', '--sign', '-']
+    if args.distribution_dir:
+        sign = ['codesign', '--force', '--sign', os.environ['POPUP_BOOK_SIGNING_IDENTITY'],
+                '--options', 'runtime', '--timestamp']
     contents = stage / 'Contents'
     (contents / 'MacOS').mkdir(parents=True)
     resources = contents / 'Resources'
@@ -80,8 +86,8 @@ def build(args):
         service_info = dict(CFBundleIdentifier=page['service'], CFBundleExecutable=page['product'], CFBundlePackageType='XPC!', XPCService=dict(ServiceType='Application', RunLoopType='NSRunLoop'), BookTestService=bool(args.preview and page.get('testOnly', False)))
         (service / 'Contents/Info.plist').write_bytes(plistlib.dumps(service_info))
         (resources / 'Pages' / (page['id'] + '.json')).write_text(json.dumps(page, ensure_ascii=False))
-        command(['codesign', '--force', '--sign', '-', str(service)])
-    command(['codesign', '--force', '--sign', '-', str(stage)])
+        command([*sign, str(service)])
+    command([*sign, str(stage)])
     command(['codesign', '--verify', '--deep', '--strict', str(stage)])
     baseline = ROOT / 'build/baseline-开合之间.app'
     if target.exists():
@@ -89,7 +95,7 @@ def build(args):
             shutil.copytree(target, baseline)
         shutil.rmtree(target)
     stage.rename(target)
-    if not args.preview:
+    if not args.preview and not args.distribution_dir:
         command(['python3', 'scripts/write-build-receipt.py'])
     print('已构建独立进程整书：', target, flush=True)
 if __name__ == '__main__':
@@ -97,7 +103,16 @@ if __name__ == '__main__':
     parser.add_argument('--pages')
     parser.add_argument('--preview', action='store_true')
     parser.add_argument('--background-check', action='store_true')
+    parser.add_argument('--distribution-dir', type=pathlib.Path)
     args = parser.parse_args()
+    if args.distribution_dir:
+        if args.pages or args.preview or args.background_check:
+            parser.error('外部候选必须使用完整正式清单。')
+        if not os.environ.get('POPUP_BOOK_SIGNING_IDENTITY'):
+            parser.error('缺少 Apple 开发者签名身份。')
+        args.distribution_dir = args.distribution_dir.resolve()
+        if (args.distribution_dir / '开合之间.app').exists():
+            parser.error('候选包输出目录已含应用。')
     if args.background_check:
         args.preview = True
     build(args)

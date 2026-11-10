@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import PopupBookCore
@@ -42,5 +43,15 @@ final class FoldTests: XCTestCase {
         XCTAssertEqual(fold.target, 0.5)
         fold.receive(AngleSample(angle: 100, timestamp: 1))
         XCTAssertEqual(fold.target, 0.5)
+    }
+}
+
+extension FoldTests {
+    func testOptionalBookInputAndHintDecodeFromEarlierMessages() throws {
+        let decoder = JSONDecoder()
+        let context = Data(#"{"progress":1,"clock":2,"deltaTime":0.01,"stableDuration":0}"#.utf8)
+        XCTAssertNil(try decoder.decode(WorldContext.self, from: context).inputState)
+        let output = Data(#"{"caption":"","accessibility":"","actions":[],"sounds":[],"canSave":true}"#.utf8)
+        XCTAssertNil(try decoder.decode(PagePresentation.self, from: output).hint)
     }
 }
