@@ -21,6 +21,7 @@ import SceneKitRendering
     private var noticeUntil = 0.0
     var loops: Set<String> = []
     var resuming = false
+    private var distantPurr = false
     private var colorTarget: MTLTexture?
     private var depthTarget: MTLTexture?
     init() throws {
@@ -79,17 +80,30 @@ import SceneKitRendering
         self.context = context
         if context.clock > noticeUntil { interactionNotice = nil }
         let output = character.advance(in: context)
-        world.update(in: context, events: output.events)
+        let pose = output.pose
+        let entrance = pose.mood == .stretching && pose.outside < 0.01 ? pose.moodTime : 0
+        let steppingOut = pose.mood == .walking ? max(0, 1 - pose.outside * 4) : 0
+        let curtain = sin(min(1, entrance / 0.90) * .pi) * 0.9 + steppingOut * 0.6
+        let silhouette = max(steppingOut, min(1, max(0, (entrance - 0.26) / 0.52)))
+        world.update(in: context, events: output.events, curtain: curtain, silhouette: silhouette)
         presenter.update(output.pose, in: context)
         var sounds = output.sounds.map { PageSound($0.rawValue, .play) }
         for command in output.soundCommands {
             switch command {
             case .beginLoop(let id):
-                loops.insert(id.rawValue)
-                sounds.append(PageSound(id.rawValue, .begin))
+                let key: String
+                if id == PaperCatSounds.purr {
+                    distantPurr = pose.outside < 0.95 || pose.roaming > 0.6
+                    key = distantPurr ? "paper-cat.purr-far" : id.rawValue
+                } else {
+                    key = id.rawValue
+                }
+                loops.insert(key)
+                sounds.append(PageSound(key, .begin))
             case .endLoop(let id, let fade):
-                loops.remove(id.rawValue)
-                sounds.append(PageSound(id.rawValue, .end, fade: fade))
+                let key = id == PaperCatSounds.purr && distantPurr ? "paper-cat.purr-far" : id.rawValue
+                loops.remove(key)
+                sounds.append(PageSound(key, .end, fade: fade))
             }
         }
         if resuming {

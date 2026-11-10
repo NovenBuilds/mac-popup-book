@@ -34,7 +34,7 @@ public enum ReefWildlifeMotion {
     public static func shark(at clock: Double) -> (position: SIMD3<Double>, heading: Double) {
         let phase = clock * 0.25 + 3.9
         return (
-            SIMD3(1.18 * cos(phase), 1.03 + 0.026 * sin(phase * 2), -0.79 + 0.065 * sin(phase)),
+            SIMD3(1.18 * cos(phase), 1.03 + 0.026 * sin(phase * 2), -0.72 + 0.065 * sin(phase)),
             -atan2(0.065 * cos(phase), -1.18 * sin(phase))
         )
     }

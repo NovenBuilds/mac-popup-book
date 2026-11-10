@@ -26,6 +26,8 @@ public struct PocketTownGameplay: Equatable, Sendable {
     public var notice: PocketTownNotice?
     public var noticeUntil: Double
     public var canInteract: Bool
+    public private(set) var automaticRunning = false
+    private var manualTrip = false
 
     public static let loopDuration = 24.0
     public static let switchRadius = 0.18
@@ -65,38 +67,46 @@ public struct PocketTownGameplay: Equatable, Sendable {
         case .station:
             switch train {
             case .atStation:
-                tripRoute = selectedRoute
-                train = .running(progress: 0)
-                notice = nil
+                manualTrip = true
+                startTrip()
             case .running:
                 setNotice(.trainBusy, until: now + 1.4)
             }
         }
     }
 
-    public mutating func advance(
-        bookProgress: Double, clock: Double, deltaTime: Double, folding: PocketTownFolding
-    ) {
-        let delta = max(0, deltaTime)
+    /// Returns whether the locomotive crossed the station on this update.
+    @discardableResult public mutating func advance(
+        bookProgress: Double, clock: Double, deltaTime: Double, folding: PocketTownFolding,
+        lidAngle: Double? = nil
+    ) -> Bool {
+        let delta = deltaTime.isFinite ? max(0, deltaTime) : 0
         updateInteractionGate(folding: folding)
+        automaticRunning = canInteract && (lidAngle ?? 0) > 90
+        if clock >= noticeUntil { notice = nil }
 
         if bookProgress < Self.foldedResetProgress {
             resetTrainAtStation()
-        } else {
-            switch train {
-            case .atStation:
-                break
-            case .running(let progress):
-                let next = progress + delta / Self.loopDuration
-                if next >= 1 {
-                    resetTrainAtStation()
-                } else {
-                    train = .running(progress: next)
-                }
-            }
+            return false
         }
+        if automaticRunning {
+            manualTrip = false
+            if !trainIsRunning { startTrip() }
+        }
+        guard trainIsMoving, case .running(let progress) = train else { return false }
 
-        if clock >= noticeUntil { notice = nil }
+        let next = progress + delta / Self.loopDuration
+        if next < 1 {
+            train = .running(progress: next)
+            return false
+        }
+        if automaticRunning {
+            tripRoute = selectedRoute
+            train = .running(progress: next.truncatingRemainder(dividingBy: 1))
+        } else {
+            resetTrainAtStation()
+        }
+        return true
     }
 
     public func caption(zh: Bool) -> String {
@@ -107,12 +117,14 @@ public struct PocketTownGameplay: Equatable, Sendable {
         switch train {
         case .atStation where canInteract:
             return zh
-                ? "点击车站发车，点击道岔切到\(routeName)。"
-                : "Tap the station to depart. Switch is on \(routeName)."
+                ? "超过 90° 自动发车，也可点击车站。当前为\(routeName)。"
+                : "Opens past 90° to depart, or tap the station. Switch is on \(routeName)."
         case .atStation:
             return zh ? "口袋小镇" : "Pocket Town"
-        case .running:
+        case .running where trainIsMoving:
             return zh ? "小火车正在走\(routeName)。" : "Train on \(routeName)."
+        case .running:
+            return zh ? "火车已暂停，打开到 90° 以上继续。" : "Train paused. Open past 90° to resume."
         }
     }
 
@@ -140,7 +152,16 @@ public struct PocketTownGameplay: Equatable, Sendable {
         return false
     }
 
+    public var trainIsMoving: Bool { trainIsRunning && (automaticRunning || manualTrip) }
+
+    private mutating func startTrip() {
+        tripRoute = selectedRoute
+        train = .running(progress: 0)
+        notice = nil
+    }
+
     private mutating func resetTrainAtStation() {
+        manualTrip = false
         train = .atStation
         tripRoute = nil
     }

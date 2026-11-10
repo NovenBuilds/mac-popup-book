@@ -36,14 +36,18 @@ public struct WorldContext: Sendable, Codable {
     public var deltaTime: Double
     public var stableDuration: Double
     public var wallDate: Date?
+    public var lidAngle: Double?
+    public var pageReady: Bool?
     public init(
-        progress: Double, clock: Double, deltaTime: Double, stableDuration: Double, wallDate: Date? = nil
+        progress: Double, clock: Double, deltaTime: Double, stableDuration: Double, wallDate: Date? = nil,
+        lidAngle: Double? = nil
     ) {
         self.progress = progress
         self.clock = clock
         self.deltaTime = deltaTime
         self.stableDuration = stableDuration
         self.wallDate = wallDate
+        self.lidAngle = lidAngle
     }
 }
 public enum CharacterEvent: Equatable, Sendable { case restingInside, appearing, outside, returningInside }

@@ -30,6 +30,8 @@ import SceneKitRendering
     private let house = SCNNode()
     private let peek = SCNNode()
     private let lamp = SCNNode()
+    private let doorCurtain = SCNNode()
+    private let doorShadow = SCNNode()
     private var returning = false
     private var foliage: [SCNNode] = []
     private let cream = 0xF4E9CD
@@ -234,6 +236,22 @@ import SceneKitRendering
         // Rounded doorway is a dark cutout-looking contour with an oak frame.
         paper.cut(paper.rounded(0.26, 0, 0.88, 1.62, 0.35), 0x8B6B50, house, z: 0.09)
         paper.cut(paper.rounded(0.34, 0.01, 0.72, 1.47, 0.3), 0x494D3D, house, z: 0.12)
+        doorShadow.position = SCNVector3(0.70, 0.23, 0.151)
+        paper.cut(paper.ellipse(0.42, 0.37), 0x282D28, doorShadow)
+        paper.cut(paper.polygon([(-0.19, 0.04), (-0.18, 0.30), (-0.03, 0.14)]), 0x282D28, doorShadow)
+        paper.cut(paper.polygon([(0.19, 0.04), (0.18, 0.30), (0.03, 0.14)]), 0x282D28, doorShadow)
+        doorShadow.isHidden = true
+        house.addChildNode(doorShadow)
+        doorCurtain.position = SCNVector3(0.70, 1.35, 0.159)
+        paper.cut(
+            paper.polygon([
+                (-0.27, 0.02), (0.27, 0.02), (0.26, -0.32), (0.07, -0.28), (-0.06, -0.35), (-0.25, -0.31),
+            ]),
+            0xB56A50, doorCurtain, thickness: 0.013)
+        for x in [-0.18, -0.09, 0.08, 0.18] {
+            paper.cut(paper.rounded(x, -0.28, 0.018, 0.29, 0.007), 0xCA8768, doorCurtain, z: 0.013)
+        }
+        house.addChildNode(doorCurtain)
         paper.cut(paper.rounded(-1.15, 1.1, 0.98, 0.99, 0.1), 0x87684E, house, z: 0.09)
         paper.cut(paper.rounded(-1.06, 1.19, 0.8, 0.81, 0.05), 0xEACB8D, house, z: 0.12)
         paper.cut(paper.rounded(-0.69, 1.18, 0.055, 0.83, 0.005), 0x87684E, house, z: 0.18)
@@ -250,6 +268,12 @@ import SceneKitRendering
     }
 
     public func update(in context: WorldContext, events: [CharacterEvent]) {
+        update(in: context, events: events, curtain: 0, silhouette: 0)
+    }
+
+    public func update(
+        in context: WorldContext, events: [CharacterEvent], curtain: Double, silhouette: Double
+    ) {
         SCNTransaction.begin()
         SCNTransaction.animationDuration = 0
         SCNTransaction.disableActions = true
@@ -265,7 +289,12 @@ import SceneKitRendering
             case .restingInside, .appearing, .outside: returning = false
             }
         }
-        lamp.opacity = returning || context.progress < 0.65 ? 1 : 0.25
+        doorCurtain.eulerAngles.x = -0.42 * curtain
+        doorCurtain.eulerAngles.z = 0.13 * curtain
+        doorShadow.isHidden = silhouette <= 0.01
+        doorShadow.opacity = silhouette
+        doorShadow.position.y = 0.17 + 0.16 * silhouette
+        lamp.opacity = returning || context.progress < 0.65 ? 1 : 0.46 + 0.45 * silhouette
         SCNTransaction.commit()
     }
 }

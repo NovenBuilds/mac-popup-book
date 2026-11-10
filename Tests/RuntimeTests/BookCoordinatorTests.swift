@@ -87,6 +87,12 @@ private func descriptor(_ id: String, version: Int = 1) -> Data {
         clock.step(0.1)
         XCTAssertTrue(coordinator.fold.sensorAvailable)
         XCTAssertEqual(coordinator.state.angle, 100)
+        XCTAssertEqual(port.contexts.last?.lidAngle, 100)
+        XCTAssertTrue(port.contexts.contains { $0.pageReady == false })
+        XCTAssertEqual(port.contexts.last?.pageReady, true)
+        coordinator.setFollowing(false)
+        clock.step(0.1)
+        XCTAssertNil(port.contexts.last?.lidAngle)
     }
     func testRegistryQuarantinesBadAndDuplicateEntries() {
         let registry = PageRegistry(

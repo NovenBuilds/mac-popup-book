@@ -10,6 +10,7 @@ final class UnderwaterTheaterScene {
     private var coralFolds: [SCNNode] = []
     private var rearCoralFolds: [SCNNode] = []
     private let backdrop = SCNNode()
+    private var frontGrass: [SCNNode] = []
     private var seaweedFolds: [SCNNode] = []
     private var fishNodes: [SCNNode] = []
     private var wildlife: ReefAnimals?
@@ -172,24 +173,41 @@ final class UnderwaterTheaterScene {
     }
 
     private func buildReefScenery(into scene: SCNScene) {
-        backdrop.position = SCNVector3(0, 0.02, -1.055)
+        backdrop.position = SCNVector3(0, 0.02, -1.125)
         scene.rootNode.addChildNode(backdrop)
-        for (index, tint) in [color(0.24, 0.57, 0.68), color(0.35, 0.72, 0.73)].enumerated() {
+        for (index, tint) in [color(0.10, 0.26, 0.43), color(0.19, 0.49, 0.57)].enumerated() {
             let wave = NSBezierPath()
             wave.move(to: CGPoint(x: -1.77, y: 0))
-            wave.line(to: CGPoint(x: -1.77, y: 0.68 - Double(index) * 0.14))
+            wave.line(to: CGPoint(x: -1.77, y: 1.46 - Double(index) * 0.57))
             for point in 1...24 {
                 let x = -1.77 + Double(point) * 3.54 / 24
                 let height =
-                    0.61 - Double(index) * 0.17
+                    1.40 - Double(index) * 0.57
                     + 0.09 * sin(x * 3.5 + Double(index)) + 0.07 * cos(x * 5.1)
                 wave.line(to: CGPoint(x: x, y: height))
             }
             wave.line(to: CGPoint(x: 1.77, y: 0))
             wave.close()
             let bank = paperCut(wave, thickness: 0.017, tint: tint)
-            bank.position.z = (Double(index) - 1) * 0.055
+            bank.position.z = (Double(index) - 1) * 0.068
             backdrop.addChildNode(bank)
+        }
+
+        for index in 0..<11 {
+            let width = 0.20 + Double(index % 4) * 0.11
+            let glint = box(width: width, height: 0.009, depth: 0.003, color: color(0.46, 0.71, 0.77))
+            glint.opacity = 0.44
+            glint.position = SCNVector3(-1.58 + Double(index) * 0.31, 0.52 + Double(index % 3) * 0.22, 0.015)
+            backdrop.addChildNode(glint)
+        }
+        for side in [-1.0, 1.0] {
+            for index in 0..<3 {
+                let blade = seaweedBlade(height: 0.34 + Double(index) * 0.085)
+                blade.position = SCNVector3(side * (1.52 + Double(index) * 0.093), 0.015, 1.015)
+                blade.eulerAngles.y = side < 0 ? .pi : 0
+                scene.rootNode.addChildNode(blade)
+                frontGrass.append(blade)
+            }
         }
 
         let beds: [(Double, Double, Double, NSColor)] = [
@@ -435,13 +453,13 @@ final class UnderwaterTheaterScene {
     private func buildCameraAndLights(into scene: SCNScene) {
         let camera = SCNCamera()
         camera.usesOrthographicProjection = true
-        camera.orthographicScale = 1.73
+        camera.orthographicScale = 1.90
         camera.zNear = 0.1
         camera.zFar = 20
         let cameraNode = SCNNode()
         cameraNode.camera = camera
         cameraNode.position = SCNVector3(1.12, 3.65, 6.8)
-        cameraNode.look(at: SCNVector3(0, 0.15, 0))
+        cameraNode.look(at: SCNVector3(0, 0.47, 0))
         scene.rootNode.addChildNode(cameraNode)
         renderer.pointOfView = cameraNode
 
@@ -469,6 +487,11 @@ final class UnderwaterTheaterScene {
         _ folding: UnderwaterTheaterFolding, gameplay: UnderwaterTheaterGameplay, clock: Double
     ) {
         setForwardFold(backdrop, amount: folding.backdrop)
+        backdrop.scale.y = max(0.001, folding.backdrop)
+        for (index, blade) in frontGrass.enumerated() {
+            setForwardFold(blade, amount: folding.seaweed)
+            blade.eulerAngles.z = 0.10 * sin(clock * 1.3 + Double(index))
+        }
         for node in rearCoralFolds { setForwardFold(node, amount: folding.rearCoral) }
         for node in coralFolds { setForwardFold(node, amount: folding.coral) }
         wildlife?.update(layer: gameplay.reef.layer, clock: clock)
@@ -498,7 +521,7 @@ final class UnderwaterTheaterScene {
 
         let school = gameplay.schoolCenter()
         let distance = hypot(flowScene.x - school.position.x, flowScene.y - school.position.y)
-        let blend = min(1, gameplay.flowStrength * 0.85) * max(0, 1 - distance / 0.95)
+        let blend = min(1, gameplay.schoolCurrent * 0.85) * max(0, 1 - distance / 0.95)
         let heading = sampleHeading(base: school.heading, steer: school.steerHeading, blend: blend)
         let fishHide = gameplay.reef.layer < 3
         for (index, fish) in fishNodes.enumerated() {

@@ -38,6 +38,13 @@
       "autostart": false
     },
     {
+      "id": "paper-cat.purr-far",
+      "path": "Audio/purr.wav",
+      "volume": 0.10,
+      "loops": true,
+      "autostart": false
+    },
+    {
       "id": "paper-cat.greeting",
       "path": "Audio/meow.wav",
       "volume": 0.15,

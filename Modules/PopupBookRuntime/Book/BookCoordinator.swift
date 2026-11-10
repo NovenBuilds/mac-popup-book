@@ -233,6 +233,7 @@ import PopupBookCore
         }
         context = fold.advance(dt)
         context.wallDate = wallClock?.date
+        context.lidAngle = following ? fold.angle : nil
         state.progress = context.progress
         state.angle = fold.angle
         for (id, _) in ports {
@@ -285,6 +286,7 @@ import PopupBookCore
         updateAudioScope()
         if let id = state.current, !isFailed(id), state.phase != .turning {
             var frame = context
+            frame.pageReady = state.phase == .idle
             if state.phase == .collapsing {
                 frame.progress = context.progress * (1 - clamp(phaseTime / 0.25))
             }

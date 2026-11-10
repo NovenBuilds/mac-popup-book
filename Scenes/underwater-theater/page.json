@@ -15,6 +15,20 @@
       "volume": 0.31,
       "loops": false,
       "autostart": false
+    },
+    {
+      "id": "sea.reef",
+      "path": "Audio/reef-bed.wav",
+      "volume": 0.17,
+      "loops": true,
+      "autostart": false
+    },
+    {
+      "id": "sea.drag",
+      "path": "Audio/drag-flow.wav",
+      "volume": 0.22,
+      "loops": true,
+      "autostart": false
     }
   ]
 }

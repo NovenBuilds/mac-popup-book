@@ -17,16 +17,37 @@
       "autostart": false
     },
     {
-      "id": "town.depart",
-      "path": "Audio/depart.wav",
-      "volume": 0.19,
+      "id": "town.arrive",
+      "path": "Audio/arrive.wav",
+      "volume": 0.21,
       "loops": false,
       "autostart": false
     },
     {
-      "id": "town.arrive",
-      "path": "Audio/arrive.wav",
-      "volume": 0.21,
+      "id": "town.depart",
+      "path": "Audio/depart.wav",
+      "volume": 0.43,
+      "loops": false,
+      "autostart": false
+    },
+    {
+      "id": "town.running",
+      "path": "Audio/running.wav",
+      "volume": 0.32,
+      "loops": true,
+      "autostart": false
+    },
+    {
+      "id": "town.bridge",
+      "path": "Audio/bridge.wav",
+      "volume": 0.33,
+      "loops": false,
+      "autostart": false
+    },
+    {
+      "id": "town.clock",
+      "path": "Audio/clock.wav",
+      "volume": 0.33,
       "loops": false,
       "autostart": false
     }

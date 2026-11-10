@@ -10,6 +10,7 @@ final class RoomGuestAppearance {
     private let leftLeg = SCNNode()
     private let rightLeg = SCNNode()
     private let book = SCNNode()
+    private let turningLeaf = SCNNode()
     private var activityBlend: Double = 0
     private(set) var seatBlend = 0.0
     private var readingBlend = 0.0
@@ -57,11 +58,22 @@ final class RoomGuestAppearance {
                 at: SCNVector3(sign * 0.022, 0, 0), color: tint(0.98, 0.91, 0.69))
             page.eulerAngles.y = sign * 0.32
         }
+        book.addChildNode(turningLeaf)
+        addCard(
+            to: turningLeaf, size: SCNVector3(0.047, 0.063, 0.003),
+            at: SCNVector3(0.0235, 0, 0.006), color: tint(1, 0.96, 0.81))
+        for row in [-0.016, 0.0, 0.016] {
+            addCard(
+                to: turningLeaf, size: SCNVector3(0.028, 0.002, 0.001),
+                at: SCNVector3(0.021, row, 0.008), color: tint(0.68, 0.49, 0.30))
+        }
         torso.addChildNode(book)
     }
 
-    func update(activity: RoomTimePhase, walk: Double, clock: Double, delta: Double, entrance: Double? = nil)
-    {
+    func update(
+        activity: RoomTimePhase, walk: Double, clock: Double, delta: Double, entrance: Double? = nil,
+        pageTurn: Double
+    ) {
         let settled = walk >= 1
         let targetBlend = settled ? 1.0 : 0.0
         let travel = max(0, min(0.05, delta)) * 7
@@ -91,6 +103,9 @@ final class RoomGuestAppearance {
         torso.position.y = -rest * 0.055 + abs(step) * 0.026
         book.opacity = CGFloat(read)
         book.isHidden = read < 0.02
+        turningLeaf.isHidden = pageTurn <= 0 || pageTurn >= 1 || read < 0.8
+        turningLeaf.eulerAngles.y = 0.28 - .pi * pageTurn
+        rightArm.eulerAngles.x -= 0.32 * sin(.pi * pageTurn) * read
     }
 
     @discardableResult

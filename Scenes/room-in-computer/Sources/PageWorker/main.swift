@@ -13,6 +13,10 @@ import PopupBookCore
     private var restoreNotice: String?
     private var pendingStripSound = false
     private var lastStripSound = -1.0
+    private var lampOn = true
+    private var pendingLampSound = false
+    private var readingTime = 0.0
+    private var pageTurn = 0.0
 
     init() throws {
         scene = try RoomInComputerScene(guestAppearance: RoomGuestAppearance())
@@ -47,6 +51,10 @@ import PopupBookCore
             }
             switch event.kind {
             case .down:
+                if scene.hitsLamp(x: event.x, y: event.y) {
+                    toggleLamp()
+                    return
+                }
                 if let target = scene.pickStrip(x: event.x, y: event.y) {
                     stripActive = true
                     gameplay.handleStrip(target)
@@ -67,6 +75,7 @@ import PopupBookCore
             case "room-dawn": gameplay.handleStrip(.dockMorning)
             case "room-afternoon": gameplay.handleStrip(.dockAfternoon)
             case "room-night": gameplay.handleStrip(.dockEvening)
+            case "room-lamp": toggleLamp()
             default: return
             }
         }
@@ -81,15 +90,37 @@ import PopupBookCore
         let shouldPlay = canUseStrip && pendingStripSound && context.clock - lastStripSound > 0.19
         pendingStripSound = false
         if shouldPlay { lastStripSound = context.clock }
+        var sounds = shouldPlay ? [PageSound("room.strip", .play)] : []
+        if pendingLampSound && canUseStrip { sounds.append(PageSound("room.lamp", .play)) }
+        pendingLampSound = false
+        let reading = canUseStrip && gameplay.guestMove >= 1 && gameplay.guestDisplay.activity == .afternoon
+        if reading {
+            let previous = readingTime
+            readingTime += context.deltaTime
+            let beat = 4.5
+            if Int(readingTime / beat) > Int(previous / beat) {
+                sounds.append(PageSound("room.reading", .play))
+            }
+            pageTurn =
+                readingTime >= beat ? min(1, readingTime.truncatingRemainder(dividingBy: beat) / 0.57) : 0
+        } else {
+            readingTime = 0
+            pageTurn = 0
+        }
         return PagePresentation(
             caption: gameplay.caption(zh: zh),
             accessibility: message("窗边小屋", "Window Nook"),
             actions: [
-                PageAction("room-dawn", title: message("清晨", "Dawn"), enabled: canUseStrip),
-                PageAction("room-afternoon", title: message("午后", "Afternoon"), enabled: canUseStrip),
-                PageAction("room-night", title: message("夜晚", "Night"), enabled: canUseStrip),
+                PageAction("room-dawn", title: message("清晨", "Dawn"), enabled: canUseStrip, shortcut: "d"),
+                PageAction(
+                    "room-afternoon", title: message("午后", "Afternoon"), enabled: canUseStrip, shortcut: "a"),
+                PageAction("room-night", title: message("夜晚", "Night"), enabled: canUseStrip, shortcut: "n"),
+                PageAction(
+                    "room-lamp",
+                    title: lampOn ? message("关灯", "Switch lamp off") : message("开灯", "Switch lamp on"),
+                    enabled: canUseStrip, shortcut: "l"),
             ],
-            sounds: shouldPlay ? [PageSound("room.strip", .play)] : [],
+            sounds: sounds,
             checkpoint: RoomInComputerSave.checkpoint(from: gameplay, canSave: canSave),
             canSave: canSave,
             notice: restoreNotice)
@@ -100,7 +131,8 @@ import PopupBookCore
         scene.setViewport(CGSize(width: texture.width, height: texture.height))
         try scene.render(
             into: texture, command: command,
-            folding: RoomInComputerFolding(progress: context.progress), gameplay: gameplay, context: context)
+            folding: RoomInComputerFolding(progress: context.progress), gameplay: gameplay, context: context,
+            lampOn: lampOn, pageTurn: pageTurn)
     }
 
     func pause() -> Data? {
@@ -113,9 +145,15 @@ import PopupBookCore
         return RoomInComputerSave.pausePayload(from: gameplay, canSave: canSave)
     }
 
+    private func toggleLamp() {
+        lampOn.toggle()
+        pendingLampSound = true
+    }
+
     private func cancelInteraction() {
         stripActive = false
         pendingStripSound = false
+        pendingLampSound = false
         gameplay.cancelPointer()
     }
 

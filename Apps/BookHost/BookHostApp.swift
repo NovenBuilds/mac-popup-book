@@ -13,7 +13,7 @@ import SwiftUI
             CommandMenu(L10n.text("互动")) {
                 ForEach(model.state.output.actions, id: \.id) { action in
                     Button(action.title) { model.coordinator.handle(.action(action.id)) }.disabled(
-                        !model.state.active || model.failed
+                        !action.enabled || !model.state.active || model.state.phase != .idle || model.failed
                     )
                     .keyboardShortcut(
                         action.shortcut.flatMap { $0.first }.map {
@@ -82,7 +82,7 @@ struct BookView: View {
                         Spacer()
                         Button(L10n.text("目录")) { model.directory = true }
                     }
-                    .padding(12).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14)).padding(
+                    .padding(12).background(.thickMaterial, in: RoundedRectangle(cornerRadius: 14)).padding(
                         20)
                 }
                 Spacer()
@@ -95,24 +95,24 @@ struct BookView: View {
                         }
                         Button(L10n.text("返回目录")) { model.directory = true }
                     }
-                    .padding(30).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                    .padding(30).background(.thickMaterial, in: RoundedRectangle(cornerRadius: 18))
                 } else if model.state.current == nil && model.composition.registry.pages.isEmpty {
-                    Text(L10n.text("没有可用页面，请打开目录查看。 ")).padding().background(.regularMaterial)
+                    Text(L10n.text("没有可用页面，请打开目录查看。 ")).padding().background(.thickMaterial)
                 }
                 Spacer(minLength: 0)
                 if model.controlsVisible {
                     Text(model.state.output.caption).font(.system(size: 18, weight: .medium, design: .serif))
-                        .padding(12).background(.regularMaterial, in: Capsule()).allowsHitTesting(false)
+                        .padding(12).background(.thickMaterial, in: Capsule()).allowsHitTesting(false)
                     controls.padding(.horizontal, 24).padding(.bottom, 18)
                 } else {
                     HStack {
                         Spacer()
                         Button(L10n.text("显示控制条")) { model.controlsVisible = true }.padding().background(
-                            .regularMaterial, in: Capsule())
+                            .thickMaterial, in: Capsule())
                     }.padding(18)
                 }
             }
-        }.foregroundStyle(Color(red: 0.25, green: 0.34, blue: 0.26)).frame(minWidth: 880, minHeight: 680)
+        }.foregroundStyle(.primary).frame(minWidth: 880, minHeight: 680)
             .sheet(isPresented: $model.directory) { directory }
     }
     private var pageActionButtons: some View {
@@ -176,7 +176,7 @@ struct BookView: View {
             }
             Text(model.notice).font(.caption).lineLimit(2).frame(
                 maxWidth: .infinity, minHeight: 32, maxHeight: 32, alignment: .leading)
-        }.padding(16).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+        }.padding(16).background(.thickMaterial, in: RoundedRectangle(cornerRadius: 18))
     }
     private func isPageUnavailable(_ id: String) -> Bool {
         if case .failed = model.state.pageStates[id] { return true }

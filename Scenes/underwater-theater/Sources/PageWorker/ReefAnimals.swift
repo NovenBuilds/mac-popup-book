@@ -161,6 +161,7 @@ final class ReefAnimals {
 
         let distantShark = ReefWildlifeMotion.shark(at: clock)
         shark.isHidden = layer < 4
+        shark.opacity = CGFloat(0.46 + 0.54 * max(0, 1 - abs(distantShark.position.x) / 1.18))
         shark.position = SCNVector3(distantShark.position.x, distantShark.position.y, distantShark.position.z)
         shark.eulerAngles.y = CGFloat(distantShark.heading)
         sharkTail.eulerAngles.y = CGFloat(0.34 * sin(clock * 4.9))

@@ -15,6 +15,20 @@
       "volume": 0.28,
       "loops": false,
       "autostart": false
+    },
+    {
+      "id": "room.reading",
+      "path": "Audio/reading.wav",
+      "volume": 0.24,
+      "loops": false,
+      "autostart": false
+    },
+    {
+      "id": "room.lamp",
+      "path": "Audio/lamp-switch.wav",
+      "volume": 0.25,
+      "loops": false,
+      "autostart": false
     }
   ]
 }

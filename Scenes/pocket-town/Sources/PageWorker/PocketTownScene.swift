@@ -5,30 +5,43 @@ import SceneKit
 
 private final class TrackSegment {
     let length: Double
-    let piece: SCNNode
+    let pivot = SCNNode()
+    private var rails: [SCNNode] = []
+    private var sleepers: [SCNNode] = []
 
     init(from start: SIMD2<Double>, to end: SIMD2<Double>, width: Double, height: Double, color: NSColor) {
         let delta = end - start
-        length = (delta.x * delta.x + delta.y * delta.y).squareRoot()
-        let geometry = SCNBox(width: width, height: height, length: 1, chamferRadius: 0)
-        geometry.firstMaterial?.diffuse.contents = color
-        piece = SCNNode(geometry: geometry)
-        let pivot = SCNNode()
-        pivot.position = SCNVector3(start.x, 0.025, start.y)
+        length = hypot(delta.x, delta.y)
+        pivot.position = SCNVector3(start.x, 0.021, start.y)
         pivot.eulerAngles.y = atan2(delta.x, delta.y)
-        pivot.addChildNode(piece)
-        piece.name = "track-piece"
-        pivot.name = "track-segment"
-        self.pivot = pivot
+        for x in [-0.050, 0.050] {
+            let geometry = SCNBox(width: width * 0.54, height: height * 0.65, length: 1, chamferRadius: 0)
+            geometry.firstMaterial?.diffuse.contents = color
+            let rail = SCNNode(geometry: geometry)
+            rail.position = SCNVector3(x, 0.006, 0)
+            pivot.addChildNode(rail)
+            rails.append(rail)
+        }
+        let count = max(1, Int((length / 0.095).rounded()))
+        for index in 0..<count {
+            let geometry = SCNBox(width: 0.144, height: 0.009, length: 0.024, chamferRadius: 0.002)
+            geometry.firstMaterial?.diffuse.contents = NSColor(
+                srgbRed: 0.48, green: 0.33, blue: 0.23, alpha: 1)
+            let sleeper = SCNNode(geometry: geometry)
+            sleeper.position.z = (Double(index) + 0.5) * length / Double(count)
+            pivot.addChildNode(sleeper)
+            sleepers.append(sleeper)
+        }
     }
 
-    let pivot: SCNNode
-
     func update(_ amount: Double) {
-        piece.isHidden = amount < 0.004
         let extent = length * max(0.001, min(1, amount))
-        piece.scale.z = extent
-        piece.position.z = extent / 2
+        for rail in rails {
+            rail.isHidden = amount < 0.004
+            rail.scale.z = extent
+            rail.position.z = extent / 2
+        }
+        for sleeper in sleepers { sleeper.isHidden = sleeper.position.z > extent }
     }
 }
 
@@ -45,6 +58,8 @@ final class PocketTownScene {
     private var clockSegments: [TrackSegment] = []
     private let trainNode = SCNNode()
     private var wheels: [SCNNode] = []
+    private var rods: [SCNNode] = []
+    private var steam: [SCNNode] = []
     private let clockHand = SCNNode()
     private let riverFlag = SCNNode()
     private let signalLamp = SCNNode()
@@ -80,9 +95,9 @@ final class PocketTownScene {
 
     func render(
         into texture: MTLTexture, command: MTLCommandBuffer,
-        folding: PocketTownFolding, gameplay: PocketTownGameplay
+        folding: PocketTownFolding, gameplay: PocketTownGameplay, clock: Double
     ) throws {
-        update(folding, gameplay: gameplay)
+        update(folding, gameplay: gameplay, clock: clock)
         let size = CGSize(width: texture.width, height: texture.height)
         if colorTarget?.width != texture.width || colorTarget?.height != texture.height {
             let color = MTLTextureDescriptor.texture2DDescriptor(
@@ -296,6 +311,24 @@ final class PocketTownScene {
         buildLocomotive()
         scene.rootNode.addChildNode(trainNode)
 
+        for index in 0..<7 {
+            let cloud = SCNNode()
+            for (x, y, z, radius) in [
+                (0.0, 0.0, 0.0, 0.038), (0.029, 0.012, -0.008, 0.024), (-0.027, 0.009, 0.0, 0.025),
+            ] {
+                let geometry = SCNSphere(radius: radius)
+                geometry.segmentCount = 7
+                geometry.firstMaterial?.diffuse.contents = color(0.94 - Double(index % 2) * 0.07, 0.93, 0.85)
+                let layer = SCNNode(geometry: geometry)
+                layer.position = SCNVector3(x, y, z)
+                layer.castsShadow = false
+                cloud.addChildNode(layer)
+            }
+            cloud.isHidden = true
+            scene.rootNode.addChildNode(cloud)
+            steam.append(cloud)
+        }
+
         switchNode = SCNNode()
         switchNode.position = SCNVector3(
             PocketTownTracks.switchCenter.x - 0.09, 0.04, -0.20)
@@ -335,11 +368,23 @@ final class PocketTownScene {
         let chimney = SCNNode(geometry: SCNCylinder(radius: 0.015, height: 0.061))
         chimney.geometry?.firstMaterial?.diffuse.contents = charcoal
         add(chimney, at: 0, 0.112, 0.077)
+        let chimneyRim = SCNNode(geometry: SCNCylinder(radius: 0.019, height: 0.006))
+        chimneyRim.geometry?.firstMaterial?.diffuse.contents = brass
+        add(chimneyRim, at: 0, 0.142, 0.077)
+        for z in [-0.006, 0.053] {
+            let band = SCNNode(geometry: SCNTorus(ringRadius: 0.036, pipeRadius: 0.0026))
+            band.geometry?.firstMaterial?.diffuse.contents = brass
+            band.eulerAngles.x = .pi / 2
+            add(band, at: 0, 0.065, z)
+        }
         let headlight = SCNNode(geometry: SCNSphere(radius: 0.015))
         headlight.geometry?.firstMaterial?.diffuse.contents = brass
         headlight.geometry?.firstMaterial?.lightingModel = .constant
         add(headlight, at: 0, 0.067, 0.111)
         for side in [-1.0, 1.0] {
+            let rod = box(width: 0.005, height: 0.009, depth: 0.155, color: brass)
+            add(rod, at: side * 0.064, 0.013, 0.005)
+            rods.append(rod)
             add(box(width: 0.004, height: 0.037, depth: 0.043, color: brass), at: side * 0.052, 0.098, -0.066)
             for z in [-0.071, 0.008, 0.082] {
                 let axle = SCNNode()
@@ -423,7 +468,7 @@ final class PocketTownScene {
         scene.rootNode.addChildNode(key)
     }
 
-    private func update(_ folding: PocketTownFolding, gameplay: PocketTownGameplay) {
+    private func update(_ folding: PocketTownFolding, gameplay: PocketTownGameplay, clock: Double) {
         for segment in spineSegments { segment.update(folding.routes) }
         for segment in riversideSegments { segment.update(folding.routes) }
         for segment in clockSegments { segment.update(folding.routes) }
@@ -449,7 +494,12 @@ final class PocketTownScene {
         let sampler = gameplay.sampler()
         let sample = sampler.sample(gameplay.routeProgress)
         let distance = gameplay.routeProgress * sampler.totalLength
-        for wheel in wheels { wheel.eulerAngles.x = CGFloat(distance / 0.027) }
+        let revolution = distance / 0.027
+        for wheel in wheels { wheel.eulerAngles.x = CGFloat(revolution) }
+        for rod in rods {
+            rod.position.y = 0.013 + 0.008 * sin(revolution)
+            rod.position.z = 0.005 + 0.008 * cos(revolution)
+        }
         let riverNear = max(0, 1 - hypot(sample.position.x - 0.46, sample.position.y + 0.80) / 0.62)
         let clockNear = max(0, 1 - hypot(sample.position.x - 0.65, sample.position.y + 0.09) / 0.54)
         riverFlag.eulerAngles.y =
@@ -465,6 +515,19 @@ final class PocketTownScene {
         trainNode.eulerAngles.y = sample.heading
         trainNode.isHidden = folding.train < 0.05
         switchNode.isHidden = folding.routes < 0.35
+
+        for (index, cloud) in steam.enumerated() {
+            let age = (clock + Double(index) * 0.25).truncatingRemainder(dividingBy: 1.75)
+            let past = sampler.sample(max(0, gameplay.routeProgress - age / PocketTownGameplay.loopDuration))
+            let size = 0.45 + 0.88 * age
+            cloud.position = SCNVector3(
+                past.position.x + 0.077 * sin(past.heading) + age * 0.057,
+                trainNode.position.y + 0.153 + age * 0.21,
+                past.position.y + 0.077 * cos(past.heading) - age * 0.029)
+            cloud.scale = SCNVector3(size, size * 0.87, size)
+            cloud.opacity = CGFloat(max(0, 0.91 - age / 1.8))
+            cloud.isHidden = !gameplay.trainIsMoving || folding.train < 0.98
+        }
     }
 
     private func setFold(_ node: SCNNode, amount: Double) {

@@ -173,7 +173,8 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
             let crab = ReefWildlifeMotion.crab(at: clock)
             let seahorse = ReefWildlifeMotion.seahorse(at: clock)
             let butterfly = ReefWildlifeMotion.butterfly(at: clock).position
-            let shark = ReefWildlifeMotion.shark(at: clock).position
+            let sharkPose = ReefWildlifeMotion.shark(at: clock)
+            let shark = sharkPose.position
             // Floor crab clears the ground, the star behind it, and the fish above it.
             XCTAssertGreaterThan(crab.y - 0.092, 0)
             XCTAssertLessThan(crab.z + 0.06, 1.01 - 0.135)
@@ -185,6 +186,8 @@ final class UnderwaterTheaterGameplayTests: XCTestCase {
             XCTAssertGreaterThan(butterfly.y - 0.12, 0.43)
             // Include the lower shark fin above the highest paper skyline and arch.
             XCTAssertGreaterThan(shark.y - 0.16, 0.84)
+            let tailReach = 0.39 * abs(sin(sharkPose.heading)) + 0.075 * abs(cos(sharkPose.heading))
+            XCTAssertGreaterThan(shark.z - tailReach, -1.125)
         }
     }
 }

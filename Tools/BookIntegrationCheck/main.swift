@@ -35,6 +35,8 @@ extension PageProcessConnection: PageProcessPort {}
     var forest: Bool
     var consumed = false
     var publishedCheck: PublishedBookCheck?
+    let audition = ProcessInfo.processInfo.arguments.contains("--audition")
+    private let audioScopes = PageAudioScopes()
     init() throws {
         guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue(),
             let resources = Bundle.main.resourceURL
@@ -72,17 +74,44 @@ extension PageProcessConnection: PageProcessPort {}
             port.onCheckpoint = { [weak self] data in self?.publishedCheck?.checkpoints[page.id] = data }
             port.setViewport(width: 1600, height: 1100)
             self.ports[page.id] = port
+            if self.audition {
+                let directory = Bundle.main.bundleURL.appendingPathComponent(
+                    "Contents/XPCServices/\(page.id).xpc/Contents/Resources")
+                do {
+                    let assets = page.audio.map {
+                        AudioAsset(
+                            id: SoundID($0.id), url: directory.appendingPathComponent($0.path),
+                            volume: $0.volume, loops: $0.loops, autostart: $0.autostart)
+                    }
+                    self.audioScopes.register(page.id, bank: try BundleAudio(assets: assets))
+                } catch { self.fail("试听素材无法载入：\(error)") }
+            }
             return port
         }
         coordinator.onChange = { [weak self] in self?.consume() }
-        coordinator.onSounds = { [weak self] _, sounds in self?.publishedCheck?.record(sounds) }
+        coordinator.onSounds = { [weak self] id, sounds in
+            guard let self else { return }
+            self.publishedCheck?.record(sounds, phase: self.coordinator.state.phase)
+            if self.audition {
+                self.audioScopes.consume(id, commands: sounds)
+                if let error = self.audioScopes.error(for: id) { self.fail("试听播放失败：\(error)") }
+            }
+        }
+        coordinator.onScopeActive = { [weak self] id, active in
+            guard let self, self.audition else { return }
+            self.audioScopes.setActive(id, active)
+            if let error = self.audioScopes.error(for: id) { self.fail("试听切换失败：\(error)") }
+        }
+        coordinator.onScopeEnded = { [weak self] id in self?.audioScopes.remove(id) }
         coordinator.setFollowing(false)
+        if audition { coordinator.setSound(true) }
     }
     func start() {
         setbuf(stdout, nil)
         since = clock.now
         deadline = since + 120
         print("后台进程验收：无窗口、无焦点操作、无真实存档；1600×1100像素离屏GPU消费。数据不代表屏幕呈现帧率。")
+        if audition { print("试听模式：使用正式音频播放模块和当前系统输出。") }
         coordinator.setActive(true)
         timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.step() }

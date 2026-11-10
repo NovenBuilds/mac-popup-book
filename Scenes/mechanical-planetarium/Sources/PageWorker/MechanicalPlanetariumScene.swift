@@ -2,6 +2,7 @@ import Metal
 import PageBehavior
 import PopupBookCore
 import SceneKit
+import simd
 
 final class MechanicalPlanetariumScene {
     private let renderer: SCNRenderer
@@ -25,6 +26,10 @@ final class MechanicalPlanetariumScene {
     private var phaseBucket = -1
     private var crossbar = SCNNode()
     private var gears: [SCNNode] = []
+    private let driveShaft = SCNNode()
+    private let earthArm = SCNNode()
+    private let moonArm = SCNNode()
+    private let phaseSight = SCNNode()
     private var controlButtons: [SCNNode] = []
     private var pauseMark = SCNNode()
     private var resumeMark = SCNNode()
@@ -125,6 +130,7 @@ final class MechanicalPlanetariumScene {
         buildControls(into: scene)
         buildPhaseDial(into: scene)
         buildDriveGears(into: scene)
+        buildTransmission(into: scene)
         buildCameraAndLights(into: scene)
     }
 
@@ -155,6 +161,12 @@ final class MechanicalPlanetariumScene {
     }
 
     private func buildBase(into scene: SCNScene) {
+        let cover = box(width: 3.72, height: 0.033, depth: 2.32, color: color(0.17, 0.23, 0.33))
+        cover.position.y = -0.103
+        scene.rootNode.addChildNode(cover)
+        let edge = box(width: 3.65, height: 0.022, depth: 2.25, color: color(0.63, 0.50, 0.34))
+        edge.position.y = -0.077
+        scene.rootNode.addChildNode(edge)
         let plinth = box(width: 3.6, height: 0.06, depth: 2.2, color: color(0.12, 0.14, 0.28))
         plinth.position = SCNVector3(0, -0.04, 0)
         scene.rootNode.addChildNode(plinth)
@@ -281,22 +293,58 @@ final class MechanicalPlanetariumScene {
         }
     }
 
+    private func buildTransmission(into scene: SCNScene) {
+        let brass = color(0.89, 0.65, 0.34)
+        let dark = color(0.41, 0.31, 0.18)
+        let rail = box(width: 1.94, height: 0.029, depth: 0.062, color: dark)
+        rail.position = SCNVector3(0.03, 0.076, 0.46)
+        driveShaft.addChildNode(rail)
+        for x in [-0.90, 0.0, 0.83] {
+            let bearing = box(width: 0.081, height: 0.108, depth: 0.071, color: brass)
+            bearing.position = SCNVector3(x, 0.061, 0.46)
+            driveShaft.addChildNode(bearing)
+        }
+        let centralPost = SCNNode(geometry: SCNCylinder(radius: 0.024, height: 0.29))
+        centralPost.geometry?.firstMaterial?.diffuse.contents = brass
+        centralPost.position = SCNVector3(0, 0.154, 0)
+        driveShaft.addChildNode(centralPost)
+        for node in [driveShaft, earthArm, moonArm, phaseSight] { scene.rootNode.addChildNode(node) }
+        for (node, tint) in [(earthArm, brass), (moonArm, brass), (phaseSight, color(0.91, 0.75, 0.43))] {
+            let rod = box(width: node === phaseSight ? 0.008 : 0.018, height: 0.012, depth: 1, color: tint)
+            rod.geometry?.firstMaterial?.emission.contents = color(0.13, 0.08, 0.03)
+            node.addChildNode(rod)
+        }
+    }
+
+    private func connect(_ node: SCNNode, from: SIMD3<Double>, to: SIMD3<Double>, inset: Double) {
+        let difference = to - from
+        let span = simd_length(difference)
+        guard span > inset else {
+            node.isHidden = true
+            return
+        }
+        let center = (from + to) / 2
+        node.position = SCNVector3(center.x, center.y, center.z)
+        node.look(at: SCNVector3(to.x, to.y, to.z))
+        node.childNodes.first?.scale.z = span - inset
+    }
+
     private func buildCrank(into scene: SCNScene) {
-        crankPivot.position = SCNVector3(1.1, 0.1, 0.68)
+        crankPivot.position = SCNVector3(1.12, 0.19, 0.64)
         let axle = SCNCylinder(radius: 0.035, height: 0.12)
         axle.firstMaterial?.diffuse.contents = color(0.62, 0.48, 0.24)
         let axleNode = SCNNode(geometry: axle)
-        axleNode.eulerAngles.z = .pi / 2
+        axleNode.eulerAngles.x = .pi / 2
         crankPivot.addChildNode(axleNode)
 
         let rod = box(width: 0.02, height: 0.18, depth: 0.02, color: color(0.91, 0.72, 0.39))
-        rod.position = SCNVector3(0.065, 0.09, 0)
+        rod.position = SCNVector3(0, 0.09, 0.062)
         crankPivot.addChildNode(rod)
 
         let knobGeometry = SCNSphere(radius: 0.04)
         knobGeometry.firstMaterial?.diffuse.contents = color(0.78, 0.6, 0.3)
         let knob = SCNNode(geometry: knobGeometry)
-        knob.position = SCNVector3(0.025, 0.09, 0)
+        knob.position = SCNVector3(0, 0.09, 0.025)
         rod.addChildNode(knob)
 
         let hit = box(width: 0.32, height: 0.44, depth: 0.44, color: .clear)
@@ -418,7 +466,7 @@ final class MechanicalPlanetariumScene {
         camera.zFar = 20
         let cameraNode = SCNNode()
         cameraNode.camera = camera
-        cameraNode.position = SCNVector3(0, 3.35, 7.4)
+        cameraNode.position = SCNVector3(0.48, 3.35, 7.4)
         cameraNode.look(at: SCNVector3(0, 0.3, 0))
         scene.rootNode.addChildNode(cameraNode)
         renderer.pointOfView = cameraNode
@@ -434,6 +482,10 @@ final class MechanicalPlanetariumScene {
         key.light = SCNLight()
         key.light?.type = .directional
         key.light?.intensity = 290
+        key.light?.castsShadow = true
+        key.light?.shadowMode = .deferred
+        key.light?.shadowRadius = 3
+        key.light?.shadowColor = color(0.04, 0.05, 0.08).withAlphaComponent(0.20)
         key.light?.color = color(1, 0.89, 0.71)
         key.eulerAngles = SCNVector3(-0.48, -0.40, 0)
         scene.rootNode.addChildNode(key)
@@ -480,7 +532,7 @@ final class MechanicalPlanetariumScene {
             star.opacity = CGFloat(folding.backdrop * twinkle)
         }
 
-        crankPivot.eulerAngles.x = CGFloat(mechanism.crankAngle)
+        crankPivot.eulerAngles.z = CGFloat(-1.5 * mechanism.crankAngle)
 
         let earth = mechanism.earthPosition()
         earthSphere.position = SCNVector3(
@@ -492,6 +544,16 @@ final class MechanicalPlanetariumScene {
         moonSphere.position = SCNVector3(
             moon.x - moonPivot.position.x, moon.y - moonPivot.position.y, moon.z - moonPivot.position.z)
 
+        let earthFoot = SIMD3(earth.x, earth.y - 0.093, earth.z)
+        let moonFoot = SIMD3(moon.x, moon.y - 0.053, moon.z)
+        driveShaft.scale.y = max(0.001, folding.brackets)
+        driveShaft.isHidden = folding.brackets < 0.08
+        earthArm.isHidden = folding.bodies < 0.92
+        moonArm.isHidden = folding.bodies < 0.92
+        phaseSight.isHidden = folding.bodies < 0.92 || !gameplay.isPaused
+        connect(earthArm, from: SIMD3(0, 0.267, 0), to: earthFoot, inset: 0)
+        connect(moonArm, from: earthFoot, to: moonFoot, inset: 0)
+        connect(phaseSight, from: SIMD3(-0.82, 0.31, 0.58), to: moonFoot, inset: 0.06)
         sunLight.position = SCNVector3(0, 0, 0)
 
         let highlight = gameplay.canInteract

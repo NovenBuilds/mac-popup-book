@@ -13,6 +13,7 @@ import PopupBookCore
     private var lastClickTime = -1.0
     private var lastClickTurns = 0.0
     private var pendingClick = false
+    private var driveSound = false
 
     init() throws {
         scene = try MechanicalPlanetariumScene()
@@ -80,17 +81,29 @@ import PopupBookCore
         if let observation = gameplay.observationCaption(zh: zh) {
             caption += " \(observation)"
         }
+        let keys = [
+            "step-back": "b", "step-forward": "f", "pause-toggle": "p",
+            "observe-new": "n", "observe-quarter": "q", "observe-full": "m",
+        ]
         let actions = gameplay.presentationActions(zh: zh).map {
-            PageAction($0.id, title: $0.title, enabled: $0.enabled)
+            PageAction($0.id, title: $0.title, enabled: $0.enabled, shortcut: keys[$0.id])
         }
         let shouldClick = pendingClick && gameplay.canInteract && context.clock - lastClickTime > 0.16
         pendingClick = false
         if shouldClick { lastClickTime = context.clock }
+        var sounds = shouldClick ? [PageSound("planet.detent", .play)] : []
+        let driveAudible =
+            gameplay.canInteract && !gameplay.isPaused && context.pageReady != false
+            && (gameplay.automaticDrive || gameplay.draggingCrank)
+        if driveAudible != driveSound {
+            sounds.append(PageSound("planet.drive", driveAudible ? .begin : .end, fade: 0.30))
+            driveSound = driveAudible
+        }
         var presentation = PagePresentation(
             caption: caption,
             accessibility: message("机械天文馆", "Mechanical Planetarium"),
             actions: actions,
-            sounds: shouldClick ? [PageSound("planet.detent", .play)] : [],
+            sounds: sounds,
             checkpoint: savedState(),
             canSave: canSave)
         if let notice = gameplay.notice {

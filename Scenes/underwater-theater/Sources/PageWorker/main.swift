@@ -8,6 +8,8 @@ import PopupBookCore
     private let scene: UnderwaterTheaterScene
     private var gameplay = UnderwaterTheaterGameplay()
     private var pendingCurrentSound = false
+    private var reefSound = false
+    private var dragSound = false
     private var lastCurrentSound = -1.0
     private var context = WorldContext(progress: 0, clock: 0, deltaTime: 0, stableDuration: 0)
 
@@ -76,18 +78,32 @@ import PopupBookCore
             gameplay.canInteract && pendingCurrentSound && context.clock - lastCurrentSound > 0.20
         pendingCurrentSound = false
         if shouldPlay { lastCurrentSound = context.clock }
+        var sounds = shouldPlay ? [PageSound("sea.current", .play)] : []
+        let reefAudible = gameplay.reef.layer >= 1 && context.pageReady != false
+        let dragAudible = reefAudible && gameplay.canInteract && gameplay.dragging
+        if reefAudible != reefSound {
+            sounds.append(PageSound("sea.reef", reefAudible ? .begin : .end, fade: 0.40))
+            reefSound = reefAudible
+        }
+        if dragAudible != dragSound {
+            sounds.append(PageSound("sea.drag", dragAudible ? .begin : .end, fade: 0.24))
+            dragSound = dragAudible
+        }
         var presentation = PagePresentation(
             caption: gameplay.caption(zh: zh),
             accessibility: message("海底剧场", "Underwater Theater"),
             actions: [
                 PageAction(
-                    "current-west", title: message("左侧浅流", "Seagrass current"), enabled: gameplay.canInteract),
+                    "current-west", title: message("左侧浅流", "Seagrass current"), enabled: gameplay.canInteract,
+                    shortcut: "w"),
                 PageAction(
-                    "current-arch", title: message("拱门水流", "Arch current"), enabled: gameplay.canInteract),
+                    "current-arch", title: message("拱门水流", "Arch current"), enabled: gameplay.canInteract,
+                    shortcut: "a"),
                 PageAction(
-                    "current-shell", title: message("贝壳水流", "Shell current"), enabled: gameplay.canInteract),
+                    "current-shell", title: message("贝壳水流", "Shell current"), enabled: gameplay.canInteract,
+                    shortcut: "s"),
             ],
-            sounds: shouldPlay ? [PageSound("sea.current", .play)] : [])
+            sounds: sounds)
         if let notice = gameplay.notice {
             presentation.notice = noticeText(notice, zh: zh)
         }

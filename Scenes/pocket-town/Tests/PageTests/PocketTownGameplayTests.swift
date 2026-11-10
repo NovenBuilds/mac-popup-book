@@ -63,6 +63,31 @@ final class PocketTownGameplayTests: XCTestCase {
         XCTAssertTrue(state.caption(zh: true).contains("河岸线"))
     }
 
+    func testLidAbove90StartsRunsContinuouslyAndResumesInPlace() {
+        var state = PocketTownGameplay()
+        // Calibrated progress can differ from the default at a given raw angle.
+        let progress = 0.66
+        let folding = PocketTownFolding(progress: progress)
+        func tick(_ angle: Double, _ elapsed: Double) -> Bool {
+            state.advance(
+                bookProgress: progress, clock: elapsed, deltaTime: elapsed, folding: folding, lidAngle: angle)
+        }
+        XCTAssertFalse(tick(90, 1))
+        XCTAssertEqual(state.train, .atStation)
+        XCTAssertFalse(tick(90.01, 6))
+        XCTAssertTrue(state.trainIsMoving)
+        XCTAssertEqual(state.routeProgress, 0.25)
+        XCTAssertFalse(tick(90, 2))
+        XCTAssertFalse(state.trainIsMoving)
+        XCTAssertEqual(state.routeProgress, 0.25)
+        state.handleTap(.switchRail, folding: folding, now: 8)
+        XCTAssertEqual(state.tripRoute, .riverside)
+        XCTAssertTrue(tick(92, 19))
+        XCTAssertTrue(state.trainIsMoving)
+        XCTAssertEqual(state.tripRoute, .clockTower)
+        XCTAssertEqual(state.routeProgress, 1 / 24, accuracy: 1e-8)
+    }
+
     func testCompletesLoopAndAllowsRedispatch() {
         var state = PocketTownGameplay()
         let folding = PocketTownFolding(progress: 1)

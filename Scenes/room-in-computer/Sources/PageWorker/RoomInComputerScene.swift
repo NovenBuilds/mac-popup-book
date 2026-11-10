@@ -23,9 +23,13 @@ final class RoomInComputerScene {
     private let guestAppearance: RoomGuestAppearance
     private var windowGlow = SCNNode()
     private var lampLight = SCNNode()
+    private var lampShadeMaterial: SCNMaterial?
+    private var lampDiffuserMaterial: SCNMaterial?
     private var ambientNode = SCNNode()
     private var keyLight = SCNNode()
     private var lastHeading = 0.0
+    private var lampPool = SCNNode()
+    private let morningPanes = SCNNode()
 
     init(guestAppearance: RoomGuestAppearance) throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw PageError.missingResources }
@@ -63,11 +67,18 @@ final class RoomInComputerScene {
         }
     }
 
+    func hitsLamp(x: Double, y: Double) -> Bool {
+        let point = CGPoint(x: x * viewport.width, y: y * viewport.height)
+        let hit = renderer.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.closest.rawValue]).first
+        return hit?.node.name == "room-lamp" || hit?.node.parent?.name == "room-lamp"
+    }
+
     func render(
         into texture: MTLTexture, command: MTLCommandBuffer,
-        folding: RoomInComputerFolding, gameplay: RoomInComputerGameplay, context: WorldContext
+        folding: RoomInComputerFolding, gameplay: RoomInComputerGameplay, context: WorldContext, lampOn: Bool,
+        pageTurn: Double
     ) throws {
-        update(folding: folding, gameplay: gameplay, context: context)
+        update(folding: folding, gameplay: gameplay, context: context, lampOn: lampOn, pageTurn: pageTurn)
         let size = CGSize(width: texture.width, height: texture.height)
         if colorTarget?.width != texture.width || colorTarget?.height != texture.height {
             let color = MTLTextureDescriptor.texture2DDescriptor(
@@ -123,6 +134,9 @@ final class RoomInComputerScene {
         let rug = box(width: 0.69, height: 0.004, depth: 0.29, color: color(0.72, 0.39, 0.27))
         rug.position = SCNVector3(-0.42, 0.007, 0.32)
         scene.rootNode.addChildNode(rug)
+        lampPool = makeLightPool()
+        lampPool.position = SCNVector3(-0.22, 0.011, 0.26)
+        scene.rootNode.addChildNode(lampPool)
         for x in [-0.31, -0.27, 0.27, 0.31] {
             let border = box(width: 0.012, height: 0.001, depth: 0.27, color: color(0.94, 0.77, 0.49))
             border.position = SCNVector3(x, 0.003, 0)
@@ -183,6 +197,15 @@ final class RoomInComputerScene {
         let blanket = box(width: 0.5, height: 0.04, depth: 0.38, color: color(0.52, 0.58, 0.72))
         blanket.position = SCNVector3(0.08, 0.1, 0.02)
         base.addChildNode(blanket)
+        for x in [-0.075, 0.025] {
+            for z in [-0.090, 0.003] {
+                let pane = lightPatch(width: 0.091, depth: 0.084)
+                pane.position = SCNVector3(x, 0.0215, z)
+                morningPanes.addChildNode(pane)
+            }
+        }
+        morningPanes.eulerAngles.y = 0.22
+        blanket.addChildNode(morningPanes)
         return pivot
     }
 
@@ -237,12 +260,27 @@ final class RoomInComputerScene {
         pivot.addChildNode(cord)
         let shade = box(width: 0.2, height: 0.12, depth: 0.2, color: color(0.92, 0.85, 0.62))
         shade.position = SCNVector3(0, -0.06, 0)
+        shade.name = "room-lamp"
         pivot.addChildNode(shade)
+        lampShadeMaterial = shade.geometry?.firstMaterial
+        lampShadeMaterial?.emission.contents = color(1, 0.59, 0.24)
+
+        let diffuser = box(width: 0.18, height: 0.012, depth: 0.18, color: color(1, 0.84, 0.58))
+        diffuser.position.y = -0.060
+        diffuser.geometry?.firstMaterial?.emission.contents = color(1, 0.81, 0.48)
+        lampDiffuserMaterial = diffuser.geometry?.firstMaterial
+        shade.addChildNode(diffuser)
+
         lampLight = SCNNode()
         lampLight.light = SCNLight()
-        lampLight.light?.type = .omni
-        lampLight.light?.color = color(1.0, 0.88, 0.62)
-        lampLight.position = SCNVector3(0, -0.14, 0)
+        lampLight.light?.type = .spot
+        lampLight.light?.color = color(1.0, 0.79, 0.47)
+        lampLight.light?.spotInnerAngle = 50
+        lampLight.light?.spotOuterAngle = 110
+        lampLight.light?.attenuationStartDistance = 0.15
+        lampLight.light?.attenuationEndDistance = 1.1
+        lampLight.eulerAngles.x = -.pi / 2
+        lampLight.position = SCNVector3(0, -0.073, 0)
         shade.addChildNode(lampLight)
         return pivot
     }
@@ -305,7 +343,8 @@ final class RoomInComputerScene {
     }
 
     private func update(
-        folding: RoomInComputerFolding, gameplay: RoomInComputerGameplay, context: WorldContext
+        folding: RoomInComputerFolding, gameplay: RoomInComputerGameplay, context: WorldContext, lampOn: Bool,
+        pageTurn: Double
     ) {
         floorNode.scale = SCNVector3(1, max(0.001, folding.floor), 1)
         setFold(backWallFold, amount: folding.walls)
@@ -320,7 +359,7 @@ final class RoomInComputerScene {
         let entrance = folding.canChangeTime ? nil : folding.guestTravel
         guestAppearance.update(
             activity: guest.activity, walk: gameplay.guestMove, clock: context.clock,
-            delta: context.deltaTime, entrance: entrance)
+            delta: context.deltaTime, entrance: entrance, pageTurn: pageTurn)
         let seat = guestAppearance.seatBlend
         let position =
             entrance.map { gameplay.entrancePoint(at: $0) } ?? RoomGuestWaypoint(x: guest.x, z: guest.z)
@@ -348,7 +387,7 @@ final class RoomInComputerScene {
         guestAppearance.root.eulerAngles.y = CGFloat(lastHeading)
         guestAnchor.isHidden = folding.guestUpright == 0
 
-        applyLighting(time: gameplay.lightForTime, folding: folding)
+        applyLighting(time: gameplay.lightForTime, folding: folding, lampEnabled: lampOn)
     }
 
     private func guestHeading(_ phase: RoomTimePhase) -> Double {
@@ -359,7 +398,7 @@ final class RoomInComputerScene {
         }
     }
 
-    private func applyLighting(time: Double, folding: RoomInComputerFolding) {
+    private func applyLighting(time: Double, folding: RoomInComputerFolding, lampEnabled: Bool) {
         let morning = max(0, 1 - abs(time - 0) / 0.34)
         let afternoon = max(0, 1 - abs(time - 0.5) / 0.34)
         let evening = max(0, 1 - abs(time - 1) / 0.34)
@@ -374,9 +413,41 @@ final class RoomInComputerScene {
         keyLight.light?.intensity = CGFloat(320 * open * (0.4 + morning * 0.45 + afternoon * 0.55))
         keyLight.light?.color = blend(color(1, 0.95, 0.82), color(0.82, 0.88, 1), t: afternoon)
 
-        let lampOn = evening * folding.lamp
-        lampLight.light?.intensity = CGFloat(420 * lampOn)
-        lampLight.isHidden = lampOn < 0.08
+        let lampOn = (lampEnabled ? 0.67 + 0.33 * evening : 0) * folding.lamp
+        lampPool.opacity = CGFloat(lampOn * (0.32 + 0.57 * evening))
+        lampPool.isHidden = lampOn <= 0.001
+        morningPanes.opacity = CGFloat(morning * folding.bed)
+        morningPanes.isHidden = morning < 0.02
+        lampShadeMaterial?.emission.intensity = CGFloat(0.64 * lampOn)
+        lampDiffuserMaterial?.emission.intensity = CGFloat(lampOn)
+        lampLight.light?.intensity = CGFloat(1230 * lampOn)
+        lampLight.isHidden = lampOn < 0.035
+    }
+
+    private func lightPatch(width: Double, depth: Double) -> SCNNode {
+        let plane = SCNPlane(width: width, height: depth)
+        plane.firstMaterial?.diffuse.contents = color(1, 0.78, 0.37).withAlphaComponent(0.29)
+        plane.firstMaterial?.lightingModel = .constant
+        plane.firstMaterial?.blendMode = .add
+        plane.firstMaterial?.writesToDepthBuffer = false
+        let node = SCNNode(geometry: plane)
+        node.eulerAngles.x = -.pi / 2
+        node.renderingOrder = 2
+        return node
+    }
+
+    private func makeLightPool() -> SCNNode {
+        let node = lightPatch(width: 1.12, depth: 0.82)
+        let size = NSSize(width: 128, height: 128)
+        let glow = color(1, 0.58, 0.20)
+        node.geometry?.firstMaterial?.diffuse.contents = NSImage(size: size, flipped: false) { _ in
+            let gradient = NSGradient(
+                starting: glow.withAlphaComponent(0.76), ending: glow.withAlphaComponent(0))
+            gradient?.draw(
+                in: NSBezierPath(ovalIn: NSRect(origin: .zero, size: size)), relativeCenterPosition: .zero)
+            return true
+        }
+        return node
     }
 
     private func skyTint(time: Double) -> (r: Double, g: Double, b: Double) {

@@ -10,6 +10,7 @@ public enum UnderwaterTheaterNotice: String, Equatable, Sendable {
 
 public struct UnderwaterTheaterGameplay: Equatable, Sendable {
     public private(set) var flowPoint: TheaterPoint
+    public private(set) var schoolCurrent = 0.0
     public private(set) var flowStrength: Double
     public private(set) var dragging: Bool
     public var fishProgress: Double
@@ -113,6 +114,7 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
             flowStrength = max(0, flowStrength - delta * Self.flowDecayPerSecond)
         }
 
+        schoolCurrent += (flowStrength - schoolCurrent) * min(1, delta * 4.5)
         if bookProgress < Self.foldedResetProgress || folding.fish < 0.12 {
             let retreatRate = delta / 2.4
             fishProgress = max(0, fishProgress - retreatRate * 0.35)
@@ -125,7 +127,7 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
                 current: fishOffset, target: TheaterPoint(0, 0), deltaTime: delta,
                 flowStrength: 0, dragging: false)
         } else if reef.layer >= 3 {
-            let guide = flowStrength * (dragging ? 1.0 : 0.65)
+            let guide = schoolCurrent * (dragging ? 1.0 : 0.65)
             let flowScene = flowPoint
             let sample = sampler().sample(fishProgress)
             let toward = flowScene - sample.position
@@ -137,10 +139,10 @@ public struct UnderwaterTheaterGameplay: Equatable, Sendable {
 
             let anchor = sampler().sample(fishProgress).position
             let target = UnderwaterTheaterSteering.targetOffset(
-                pathAnchor: anchor, flowScene: flowScene, flowStrength: flowStrength)
+                pathAnchor: anchor, flowScene: flowScene, flowStrength: schoolCurrent)
             var next = UnderwaterTheaterSteering.integrate(
                 current: fishOffset, target: target, deltaTime: delta,
-                flowStrength: flowStrength, dragging: dragging)
+                flowStrength: schoolCurrent, dragging: dragging)
             next = UnderwaterTheaterSteering.constrain(pathAnchor: anchor, offset: next)
             fishOffset = next
         }

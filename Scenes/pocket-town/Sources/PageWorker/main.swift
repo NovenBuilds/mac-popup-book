@@ -8,6 +8,9 @@ import PopupBookCore
     private let scene: PocketTownScene
     private var gameplay = PocketTownGameplay()
     private var pendingSounds: [PageSound] = []
+    private var runningSound = false
+    private var nearBridge = false
+    private var nearClock = false
     private var context = WorldContext(progress: 0, clock: 0, deltaTime: 0, stableDuration: 0)
 
     init() throws {
@@ -43,16 +46,35 @@ import PopupBookCore
         self.context = context
         let folding = PocketTownFolding(progress: context.progress)
         let wasRunning = gameplay.trainIsRunning
-        gameplay.advance(
+        // Without a live angle, the slider uses the default 35°–105° range.
+        let angle = context.lidAngle ?? (35 + 70 * context.progress)
+        let arrived = gameplay.advance(
             bookProgress: context.progress, clock: context.clock, deltaTime: context.deltaTime,
-            folding: folding)
-        if wasRunning && !gameplay.trainIsRunning
-            && context.progress >= PocketTownGameplay.foldedResetProgress
-        {
+            folding: folding, lidAngle: context.pageReady == false ? 0 : angle)
+        if !wasRunning && gameplay.trainIsRunning {
+            pendingSounds.append(PageSound("town.depart", .play))
+        }
+        if arrived {
             pendingSounds.append(PageSound("town.arrive", .play))
         }
+        let moving = gameplay.trainIsMoving && context.pageReady != false
+        if moving != runningSound {
+            pendingSounds.append(PageSound("town.running", moving ? .begin : .end, fade: 0.18))
+            runningSound = moving
+        }
+        let train = gameplay.sampler().sample(gameplay.routeProgress).position
+        let crossingBridge = moving && abs(train.x + 0.25) < 0.29
+        let passingClock =
+            moving && gameplay.displayRoute == .clockTower
+            && hypot(train.x + 0.76, train.y - 0.94) < 0.19
+        if crossingBridge && !nearBridge { pendingSounds.append(PageSound("town.bridge", .play)) }
+        if passingClock && !nearClock { pendingSounds.append(PageSound("town.clock", .play)) }
+        nearBridge = crossingBridge
+        nearClock = passingClock
         let zh = isChinese
-        let sounds = context.progress >= PocketTownGameplay.foldedResetProgress ? pendingSounds : []
+        let sounds =
+            context.progress >= PocketTownGameplay.foldedResetProgress
+            ? pendingSounds : pendingSounds.filter { $0.operation == .end }
         pendingSounds.removeAll(keepingCapacity: true)
         var presentation = PagePresentation(
             caption: gameplay.caption(zh: zh),
@@ -77,7 +99,7 @@ import PopupBookCore
         scene.setViewport(CGSize(width: texture.width, height: texture.height))
         try scene.render(
             into: texture, command: command,
-            folding: PocketTownFolding(progress: context.progress), gameplay: gameplay)
+            folding: PocketTownFolding(progress: context.progress), gameplay: gameplay, clock: context.clock)
     }
 
     func pause() -> Data? {
