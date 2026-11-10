@@ -1,0 +1,160 @@
+[
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/README.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/README.md",
+    "source_sha256": "575e03657b2d19918c1e0d2be11e4dd320ce898216e747c368fbb47fc1a47b6f",
+    "destination_sha256": "575e03657b2d19918c1e0d2be11e4dd320ce898216e747c368fbb47fc1a47b6f",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/产品深化方向草案.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/产品深化方向草案.md",
+    "source_sha256": "f69af1584d706c4ad376e07f1fca5b185d85d3f5b32d6017793e9ef3f1fc0859",
+    "destination_sha256": "f69af1584d706c4ad376e07f1fca5b185d85d3f5b32d6017793e9ef3f1fc0859",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/多场景工程整理验收记录-2026-10-27.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/多场景工程整理验收记录-2026-10-27.md",
+    "source_sha256": "d20dc7a9adb1c0250efeaaa60c5bf3a5668deb5a7994c81a84cedf452ede20db",
+    "destination_sha256": "d20dc7a9adb1c0250efeaaa60c5bf3a5668deb5a7994c81a84cedf452ede20db",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/多场景独立开发与进程隔离实施说明.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/多场景独立开发与进程隔离实施说明.md",
+    "source_sha256": "6a15d18f841ec39a89c991d9008c0fc53566e5664a9669a103ad1b9aa06f487c",
+    "destination_sha256": "6a15d18f841ec39a89c991d9008c0fc53566e5664a9669a103ad1b9aa06f487c",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/工程整理实施与验收记录.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/工程整理实施与验收记录.md",
+    "source_sha256": "9d68e90779603090f53d27e1bafa339e9ee41605df392d0c12e4a27a08ce691a",
+    "destination_sha256": "9d68e90779603090f53d27e1bafa339e9ee41605df392d0c12e4a27a08ce691a",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/开合立体书-六跨页场景与整书规划.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/开合立体书-六跨页场景与整书规划.md",
+    "source_sha256": "a833a203f251f894b974ab00548dad0e5d9ce8ca75517d643f889fb16ebf0893",
+    "destination_sha256": "a833a203f251f894b974ab00548dad0e5d9ce8ca75517d643f889fb16ebf0893",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/控制条闪烁修复记录-2026-10-27.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/控制条闪烁修复记录-2026-10-27.md",
+    "source_sha256": "b086892415ca068b7ef1d07ff633cd07684e3a79a7d3ce0d421adbfebf5ed28c",
+    "destination_sha256": "b086892415ca068b7ef1d07ff633cd07684e3a79a7d3ce0d421adbfebf5ed28c",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/收敛修复记录-2026-10-27.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/收敛修复记录-2026-10-27.md",
+    "source_sha256": "9372548ee007f6aaea5c6d1ff52783bc1014a7806c00b1e99287fc6df18068aa",
+    "destination_sha256": "9372548ee007f6aaea5c6d1ff52783bc1014a7806c00b1e99287fc6df18068aa",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/林间小屋七阶段演进路线.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/林间小屋七阶段演进路线.md",
+    "source_sha256": "034e007e47859cab3003a3729203fd0e0e17ffc299f8a1e947e4cff2ef656b3c",
+    "destination_sha256": "034e007e47859cab3003a3729203fd0e0e17ffc299f8a1e947e4cff2ef656b3c",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/第一阶段任务实施说明-一只值得相处十分钟的猫.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/第一阶段任务实施说明-一只值得相处十分钟的猫.md",
+    "source_sha256": "9d3ac222ead847c06e7186c5d8c5ccbd654ecd6f32eb2357e4ba890dd8ecfcd6",
+    "destination_sha256": "614883bc0af89c8c351d130e4d5ba5b66e3abfd64baf941b7efc3d29f97dfaf9",
+    "link_relocations": [
+      [
+        "阶段验收/S1/持续推进记录-2026-10-27.md",
+        "../../../mac-duo/popup-book/阶段验收/S1/持续推进记录-2026-10-27.md"
+      ],
+      [
+        "阶段验收/S1/行为转移与验证.md",
+        "../../../mac-duo/popup-book/阶段验收/S1/行为转移与验证.md"
+      ],
+      [
+        "阶段验收/S1/合成声音说明.md",
+        "../../../mac-duo/popup-book/阶段验收/S1/合成声音说明.md"
+      ]
+    ]
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/第七阶段任务实施说明-成为可以放心长期使用的独立产品.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/第七阶段任务实施说明-成为可以放心长期使用的独立产品.md",
+    "source_sha256": "02562e83466aeea6c47271ad9ee7eb5bfc3f4f6e7491328700d97c7fa5cc5819",
+    "destination_sha256": "02562e83466aeea6c47271ad9ee7eb5bfc3f4f6e7491328700d97c7fa5cc5819",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/第三阶段任务实施说明-它记得你故事开始延续.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/第三阶段任务实施说明-它记得你故事开始延续.md",
+    "source_sha256": "11fd8c84f9ae6350547255b0faa22f956507ae0f326d18548a90ea09c6abbcc9",
+    "destination_sha256": "11fd8c84f9ae6350547255b0faa22f956507ae0f326d18548a90ea09c6abbcc9",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/第二阶段任务实施说明-一本有触感有生命的立体书.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/第二阶段任务实施说明-一本有触感有生命的立体书.md",
+    "source_sha256": "c06ddf176d2e45d4a3f79db53cb1b7d6b3801b71a84782ce3f09dab57059b283",
+    "destination_sha256": "cad2afaf832005fe32c0b37d2fe074d084babab9825d9fe76b6a3d58f456b8d1",
+    "link_relocations": [
+      [
+        "阶段验收/S2/独立资产预检记录.md",
+        "../../../mac-duo/popup-book/阶段验收/S2/独立资产预检记录.md"
+      ]
+    ]
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/第五阶段任务实施说明-陪你听歌也陪你安静做事.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/第五阶段任务实施说明-陪你听歌也陪你安静做事.md",
+    "source_sha256": "702821a9add180cf96a17fc94b1fd74025ee1ad68ef2ed67783e9c3233604309",
+    "destination_sha256": "702821a9add180cf96a17fc94b1fd74025ee1ad68ef2ed67783e9c3233604309",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/第六阶段任务实施说明-让现实轻轻走进小屋.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/第六阶段任务实施说明-让现实轻轻走进小屋.md",
+    "source_sha256": "4c58477e9ae0b8a8604896143fddc890648faf18a41a5a532b5025035ca2bf2a",
+    "destination_sha256": "4c58477e9ae0b8a8604896143fddc890648faf18a41a5a532b5025035ca2bf2a",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/第四阶段任务实施说明-小屋里有值得发现的生活.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/第四阶段任务实施说明-小屋里有值得发现的生活.md",
+    "source_sha256": "e0653f24429573ddc6b1c44c902e71e689ba0ad61731570bebf49cecc333a835",
+    "destination_sha256": "e0653f24429573ddc6b1c44c902e71e689ba0ad61731570bebf49cecc333a835",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/系统语言适配记录-2026-10-27.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/系统语言适配记录-2026-10-27.md",
+    "source_sha256": "2f7e894bea7274c00a6fa35841ffd81cac0cf0ed3bc6d06ff09f4f845188c21e",
+    "destination_sha256": "2f7e894bea7274c00a6fa35841ffd81cac0cf0ed3bc6d06ff09f4f845188c21e",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/顶栏调整与角度不可用说明-2026-10-27.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/顶栏调整与角度不可用说明-2026-10-27.md",
+    "source_sha256": "b535d7192c9551b3420a2277840da72b5d64b0d322d1dec91923bd4f6dedf09d",
+    "destination_sha256": "b535d7192c9551b3420a2277840da72b5d64b0d322d1dec91923bd4f6dedf09d",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/popup-book/验收记录.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/验收记录.md",
+    "source_sha256": "bb97e79fd1d954450c44c2bffd354cb822b62107ab9340608a69ee49126d57df",
+    "destination_sha256": "bb97e79fd1d954450c44c2bffd354cb822b62107ab9340608a69ee49126d57df",
+    "link_relocations": []
+  },
+  {
+    "source": "/Users/ssr/project/mac-duo/《林间小屋》立体绘本：第一版实施计划.md",
+    "destination": "/Users/ssr/project/mac-popup-book/docs/planning/《林间小屋》立体绘本：第一版实施计划.md",
+    "source_sha256": "f234eeec3336366fd8bc3b66c001bfea4602bf66024cc3430a9d4fac4c68e73b",
+    "destination_sha256": "f234eeec3336366fd8bc3b66c001bfea4602bf66024cc3430a9d4fac4c68e73b",
+    "link_relocations": []
+  }
+]
