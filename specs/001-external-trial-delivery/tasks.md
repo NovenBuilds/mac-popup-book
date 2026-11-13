@@ -7,8 +7,8 @@
 ## 本阶段任务
 
 - [x] R000 将交接规格与记录纳入 `specs/001-external-trial-delivery/`，并与远端 `e6ff530`（0.2.1，构建 4）核对
-- [ ] R001 在 GitHub Actions 中对每个候选提交运行 `bash scripts/verify-candidate.sh`，上传验收日志、构建凭据和可下载应用
-- [ ] R002 确认该次运行的提交号与应用校验值一致，并把运行链接写入 `specs/001-external-trial-delivery/records/remote-iteration.md`
+- [x] R001 在 GitHub Actions 中对每个候选提交运行 `bash scripts/verify-candidate.sh`，上传验收日志、构建凭据和可下载应用
+- [x] R002 确认该次运行的提交号与应用校验值一致，并把运行链接写入 `specs/001-external-trial-delivery/records/remote-iteration.md`
 - [ ] R003 真实开合、试听和前台 30 分钟性能仍待验收；需要人工操作时出具一份集中验收单
 - [ ] R004 签名、公证、异机安装和对外试用仍缺证书、设备或人员，保持范围外或待验收，不阻塞其他可远程完成的工作
 

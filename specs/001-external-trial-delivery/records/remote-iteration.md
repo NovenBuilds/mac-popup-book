@@ -21,4 +21,8 @@
 
 - 提交 `05d6df40f3b37608fa5d03dcc8c23b1af473b0a4`，运行 [43351785422](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43351785422)：`common`、`discover` 和全部 `scene` 通过；`candidate` 在隔离验收失败。
 - 失败原因：`后台管线性能`。离屏消费约 25.56 帧/秒，50 次注入反馈 p95 约 66.74 毫秒，传输消费 p95 约 9.97 毫秒。本机门槛是至少 55 帧/秒、p95 至多 100 毫秒。工程检查已通过，应用已构建，但因验收失败未上传可下载应用。证据包：`candidate-evidence-05d6df40f3b37608fa5d03dcc8c23b1af473b0a4`。
-- 处理：本机 55 帧/秒门槛保持不变。远程跑机改为记录同样数据，仅在离屏消费低于 1 帧/秒时失败。随后再推送并回填通过后的提交号、运行链接、应用包名称和校验值。
+- 处理：本机 55 帧/秒门槛保持不变。远程跑机改为记录同样数据，仅在离屏消费低于 1 帧/秒时失败。
+- 提交 `e5d7e9a5fc584fb8b735fea2feb59e4e5ccc33bf`，运行 [43353715983](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43353715983)（2026-11-13 10:39–10:53，Asia/Shanghai）：`common`、`discover`、全部 `scene` 和 `candidate` 通过。工程检查 154 项测试通过；隔离与五页离屏集成的功能检查通过。
+- 构建凭据与提交一致：工作区干净，源码清单 SHA-256 `80d3fc3ef65f6025571133c8b6efc45b06b04d7e2d5d908158813c4c4e3161c6`，应用清单 SHA-256 `671e0500f99237e9fd8e0ee985c230bf3635aacb5769dd7735244158292679db`，可执行文件 SHA-256 `6f838da5294b85da5fca7881f6c14c6ca0a5cf8316ca7f9e929d322e3797aa05`。
+- 可下载应用：`KaiHe-0.2.1-4-e5d7e9a5fc58-macOS.zip`，SHA-256 `e78386c3a65efb3167644c6bb5b003fefd37c624f2eb4ec47bf37e9141d2d382`。[应用产物](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43353715983/artifacts/14005861717)，[证据产物](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43353715983/artifacts/14005493009)。本地临时签名，不是公证试用包。
+- 跑机设备为 Apple Paravirtual device。隔离验收离屏消费约 26.37 帧/秒（反馈 p95 约 84.61 毫秒，传输 p95 约 5.64 毫秒）；森林约 19.95 帧/秒（传输 p95 约 20.99 毫秒）。已记录，未达本机 55 帧/秒门槛，不作为远程失败。
