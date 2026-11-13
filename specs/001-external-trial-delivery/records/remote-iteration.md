@@ -53,3 +53,12 @@
 - 可下载应用：`KaiHe-0.2.1-4-a74fd9ccdb56-macOS.zip`，SHA-256 `9adbbd6689a6c4e856c7047c9364bda768b9a317f9b6d48f746e90677aeea3b5`。[应用产物](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43366595029/artifacts/14010539091)，[证据产物](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43366595029/artifacts/14011232791)。源码清单 SHA-256 `358e226ae90937e751d85731dd16da23740ef13bd2ea56002d614f1b9d4651d7`，应用清单 SHA-256 `19f7813cf8a09ba69c01aa8d3065dcc7fa96e5b2a8ca35436413376f80ad7e1f`，可执行文件 SHA-256 `494e4a52d899c6bc5756258c016530ca9ca45787cdf5af1bed73933082626f11`。本地临时签名，不是公证试用包。
 - 本机集中验收单已改为指向本次 `a74fd9c` 应用包。真实开合、试听和前台 30 分钟性能仍待验收。
 
+## 第三批
+
+目标：补齐可复测的首次翻页和前台画面更新计时方法，并纠正天文馆存档轮询计数口径。
+
+- 脚本：`specs/001-external-trial-delivery/tools/sample-performance.py`。新增 `--mark-prompt` 和 `--mark` 打点入口，会话结束时把耗时写入 JSON 与摘要。首次翻页和前台画面更新的起止点写在 `performance-tools.md` 和验收单 US2 一节。
+- 前台画面更新的正式方法是手动展开滑块的定点拨动，采集 5 个样本并记中位数，不是离屏管线帧率。
+- `SaveWatcher` 仍用定期 `poll()` 观察 `state.json` 和备份。即使看到内容哈希变化，`count_quality` 也一律为估计值，因为轮询不能逐次确认每一次成功写入，也可能漏计连续替换。本工具没有精确计数路径。
+- 未改产品玩法和 `BookIntegrationCheck` 门槛。US1 / US2 的本机验收包仍是 `a74fd9c`（运行 [43366595029](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43366595029)，`KaiHe-0.2.1-4-a74fd9ccdb56-macOS.zip`，SHA-256 `9adbbd6689a6c4e856c7047c9364bda768b9a317f9b6d48f746e90677aeea3b5`）。本批文档和工具提交若再生成压缩包，不改验收单指向。
+- 真实开合、试听和前台 30 分钟性能仍待验收。签名、公证、异机安装和五人试玩仍为范围外。

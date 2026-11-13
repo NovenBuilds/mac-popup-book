@@ -88,9 +88,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T011 [US2] **待验收** 日后从重新启动 `build/开合之间.app` 开始，在 `specs/001-external-trial-delivery/records/performance-session.md` 记录固定分辨率、首次翻页的起止点和前台画面更新耗时。本轮不执行
+- [ ] T011 [US2] **待验收** 日后从重新启动验收单中的同一应用包开始，按 `records/performance-tools.md` 的起止点记录首次翻页和 5 次前台画面更新，写入 `specs/001-external-trial-delivery/records/performance-session.md`。本轮不执行
 - [ ] T012 [US2] **待验收** 日后连续记录满 30 分钟的内存读数和静置功耗，写入 `specs/001-external-trial-delivery/records/performance-session.md`。本轮不执行
-- [ ] T013 [US2] **待验收** 日后以主存档成功替换填写 `primary_replacement_count`，备份单列；只能观察文件变化时把 `count_quality` 标为 `估计值`。本轮不执行
+- [ ] T013 [US2] **待验收** 日后以主存档成功替换填写 `primary_replacement_count`，备份单列；定期轮询必须把 `count_quality` 标为 `估计值`，只有能逐次记录每一次成功写入时才可标为精确。本轮不执行
 - [ ] T014 [US2] **待验收** 日后只有五项数据全部齐全且分辨率未变，才可在 `specs/001-external-trial-delivery/records/performance-session.md` 标为通过。缺功耗时功耗单列待验收。本轮不执行
 
 **Checkpoint**: US2 保持待验收，不阻塞本轮结项
@@ -234,7 +234,7 @@
 - 使用独立测试账户时，`daily_store_consent=不适用`
 - US1 可以合盖唤醒。US2 从重新启动开始，连续测满 30 分钟
 - T014 的五项数据全部齐全才标为 `通过`
-- 保存计数的单位是主存档成功替换；`count_quality` 只能是 `精确` 或 `估计值`
+- 保存计数的单位是主存档成功替换；`count_quality` 只能是 `精确` 或 `估计值`。定期轮询必须标为估计值
 - 不把离屏凭据写成前台或物理开合通过
 - 本轮不发现新的实机缺陷，因此不修改应用代码
 - 范围外勾选不代表验收通过

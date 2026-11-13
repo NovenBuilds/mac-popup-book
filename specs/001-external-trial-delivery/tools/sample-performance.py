@@ -14,6 +14,7 @@ import os
 import pathlib
 import platform
 import resource
+import select
 import signal
 import subprocess
 import sys
@@ -51,6 +52,17 @@ macOS 测试账户。应用标识 {BUNDLE_ID}，界面语言简体中文（zh-Ha
 
   python3 specs/001-external-trial-delivery/tools/sample-performance.py --self-test \\
     --output build/candidate-checks/manual/tool-self-test.json
+
+首次翻页和前台画面更新请按 records/performance-tools.md 的起止点计时。
+推荐在 30 分钟会话进行时另开终端打点（--output 须与会话相同）：
+
+  python3 specs/001-external-trial-delivery/tools/sample-performance.py \
+    --mark-prompt \
+    --output build/candidate-checks/manual/performance-session.json
+
+也可一次写入一个点：--mark first-page-turn-start / first-page-turn-end，
+或 --mark foreground-update-start / foreground-update-end。会话窗口若在
+前台，也可输入 F 或 U 后回车打点。也可用秒表按同一口径记录。
 
 不要用 sudo 运行本脚本，以免看错主目录。没有超级用户授权时，本工具
 采不到瓦特数，只记录电池或电源状态（若可读）。若要另采瓦特，请在
@@ -150,8 +162,17 @@ def snapshot_file(path):
     return hashlib.sha256(data).hexdigest(), path.stat().st_mtime_ns
 
 
+def wall_clock_text():
+    return datetime.now().astimezone().isoformat(timespec='seconds')
+
+
+SAVE_POLL_QUALITY_REASON = (
+    '本工具用定期轮询观察主存档和备份文件变化，不能逐次记录每一次成功写入，'
+    '两次轮询之间的连续替换也可能被算成一次，因此计数一律为估计值。'
+)
+
 class SaveWatcher:
-    """统计主存档成功替换。只能看到时间变化时标为估计值。"""
+    """用定期轮询观察存档变化。只要走 poll()，计数一律为估计值。"""
 
     def __init__(self, directory):
         directory = pathlib.Path(directory)
@@ -164,7 +185,9 @@ class SaveWatcher:
         self.counts = {
             'primary_replacement_count': 0,
             'backup_change_count': 0,
-            'count_quality': '精确',
+            'count_quality': '估计值',
+            'count_quality_reason': SAVE_POLL_QUALITY_REASON,
+            'observation_method': 'poll',
         }
 
     def poll(self):
@@ -176,13 +199,267 @@ class SaveWatcher:
             previous = self.seen[path]
             if current is None or current == previous:
                 continue
+            self.seen[path] = current
+            self.counts['count_quality'] = '估计值'
             if previous is not None and current[0] == previous[0]:
-                self.counts['count_quality'] = '估计值'
-                self.seen[path] = current
                 continue
             self.counts[key] += 1
-            self.seen[path] = current
         return dict(self.counts)
+
+
+FOREGROUND_UPDATE_SAMPLE_COUNT = 5
+MARK_KINDS = (
+    'first-page-turn-start',
+    'first-page-turn-end',
+    'foreground-update-start',
+    'foreground-update-end',
+    'cancel-open',
+)
+MARK_KIND_ALIASES = {
+    'f': 'first-page-turn-toggle',
+    'F': 'first-page-turn-toggle',
+    'u': 'foreground-update-toggle',
+    'U': 'foreground-update-toggle',
+    'c': 'cancel-open',
+    'C': 'cancel-open',
+    'q': 'quit',
+    'Q': 'quit',
+}
+TIMING_PROTOCOL = {
+    'first_page_turn': {
+        'name': '首次翻页',
+        'preparation': (
+            'US2 须先完全退出再重新打开验收包，不要接在 US1 后面计时。'
+            '等到顶部控制条左侧页名已是五页之一（林间小屋、口袋小镇、窗边小屋、'
+            '海底剧场、机械天文馆），且「上一页」「下一页」可点，该页才算开场页就绪。'
+            '若该账户刚做过 US1，开场页会恢复为上次所在页；否则是目录第一页「林间小屋」。'
+            '启动后若短暂显示「开合之间」，等到变成五页之一再开始。'
+            '计时前把书打开到半开或全开：底部「展开」百分比至少 20%，推荐 50% 或更高。'
+            '低于约 12% 时翻页动画会停住。若开着「跟随屏幕」，铰链也须保持半开或全开；'
+            '合盖会让整段 30 分钟会话作废。'
+        ),
+        'start': (
+            '开场页已就绪后，按下底部控制条「下一页」的瞬间。'
+            '若开场页已是最后一页「机械天文馆」，改按「上一页」。'
+            '起点是按下按钮的那一刻，不是应用启动，也不是纸面开始翻动的那一刻。'
+        ),
+        'end': (
+            '目标页纸面已重新摊平（不再处于翻页旋转中），顶部页名已换成目标页名称，'
+            '底部说明已换成该页内容，「上一页」「下一页」以及该页核心操作按钮重新可点，'
+            '且没有出现「此页暂不可用」。'
+        ),
+        'equivalent_actions': (
+            '菜单「目录」中的「下一页」或「上一页」、画布焦点下的右或左方向键、'
+            '触控板左右轻扫，或打开「目录」后点击目标页名，起点同样是发出该操作的瞬间。'
+            '复测时推荐固定用底部控制条，并在记录中写明开场页和目标页名称。'
+        ),
+        'invalid': (
+            '若出现「此页暂不可用」，或画面回到开场页，这次计时作废，须把书恢复到可操作后再打一组起止点。'
+        ),
+    },
+    'foreground_update': {
+        'name': '前台画面更新',
+        'method': '手动展开滑块定点拨动',
+        'not': '不是离屏管线帧率，也不是 BookIntegrationCheck 的消费速率',
+        'sample_count': FOREGROUND_UPDATE_SAMPLE_COUNT,
+        'aggregation': '记下全部样本秒数，并给出中位数。规格没有合格线。',
+        'preparation': (
+            '控制条可见。关闭「跟随屏幕」，顶部应变为「手动预览」，「展开」滑块可拖。'
+            '当前页须已完全可操作。每次计时前先把滑块拨到 50%，等到立体结构停在半开轮廓、'
+            '百分比显示 50% 且不再明显移动；这段准备不计时。'
+        ),
+        'start': (
+            '开始把「展开」滑块一次性拖向 100% 的瞬间，或点击滑块轨道靠近 100% 一端、'
+            '滑块开始移动的瞬间。'
+        ),
+        'end': (
+            '底部百分比已稳定显示 100%，并且画面中的纸艺结构已完全停在全开轮廓、不再继续展开。'
+        ),
+        'between_samples': (
+            '两次样本之间先把滑块拨回 50% 并等到停稳，这段回程不计时。按同一方向做满 '
+            f'{FOREGROUND_UPDATE_SAMPLE_COUNT} 次。'
+        ),
+    },
+}
+
+
+def marks_path_for(output):
+    output = pathlib.Path(output or DEFAULT_OUTPUT)
+    return output.with_name(output.stem + '-marks.jsonl')
+
+
+def append_mark(output, kind, source='mark-command', mono=None):
+    if kind not in MARK_KINDS:
+        raise ValueError(f'未知打点类型：{kind}')
+    path = marks_path_for(output)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        'kind': kind,
+        'timestamp': wall_clock_text(),
+        'monotonic': time.monotonic() if mono is None else mono,
+        'source': source,
+    }
+    with path.open('a', encoding='utf-8') as handle:
+        handle.write(json.dumps(record, ensure_ascii=False) + '\n')
+    return record, path
+
+
+def load_marks(output):
+    path = marks_path_for(output)
+    if not path.is_file():
+        return []
+    events = []
+    for line in path.read_text(encoding='utf-8').splitlines():
+        if not line.strip():
+            continue
+        events.append(json.loads(line))
+    return events
+
+
+def median_seconds(values):
+    if not values:
+        return None
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) / 2
+
+
+def _duration(start, end):
+    if start is None or end is None:
+        return None
+    if 'monotonic' in start and 'monotonic' in end:
+        return round(end['monotonic'] - start['monotonic'], 3)
+    return None
+
+
+def compile_timing_marks(events, protocol=None):
+    warnings = []
+    first_start = None
+    first_result = None
+    update_start = None
+    samples = []
+    for event in events:
+        kind = event.get('kind')
+        if kind == 'cancel-open':
+            if first_start is not None and first_result is None:
+                first_start = None
+                warnings.append('已取消未完成的首次翻页起点')
+            elif update_start is not None:
+                update_start = None
+                warnings.append('已取消未完成的前台画面更新起点')
+            else:
+                warnings.append('没有可取消的未完成起点')
+            continue
+        if kind == 'first-page-turn-start':
+            if first_start is not None and first_result is None:
+                warnings.append('首次翻页起点被新的起点覆盖')
+            first_start = event
+            continue
+        if kind == 'first-page-turn-end':
+            if first_start is None:
+                warnings.append('首次翻页终点没有对应起点，已忽略')
+                continue
+            duration = _duration(first_start, event)
+            if duration is None or duration < 0:
+                warnings.append('首次翻页起止点无法计算耗时，已忽略')
+                first_start = None
+                continue
+            if first_result is not None:
+                warnings.append('首次翻页已有一次完整记录，后一次已覆盖前一次')
+            first_result = {
+                'seconds': duration,
+                'start_at': first_start.get('timestamp'),
+                'end_at': event.get('timestamp'),
+            }
+            first_start = None
+            continue
+        if kind == 'foreground-update-start':
+            if update_start is not None:
+                warnings.append('前一次画面更新没有打终点，已丢弃该起点')
+            update_start = event
+            continue
+        if kind == 'foreground-update-end':
+            if update_start is None:
+                warnings.append('前台画面更新终点没有对应起点，已忽略')
+                continue
+            duration = _duration(update_start, event)
+            if duration is None or duration < 0:
+                warnings.append('前台画面更新起止点无法计算耗时，已忽略')
+                update_start = None
+                continue
+            samples.append({
+                'seconds': duration,
+                'start_at': update_start.get('timestamp'),
+                'end_at': event.get('timestamp'),
+            })
+            update_start = None
+            continue
+    if first_start is not None and first_result is None:
+        warnings.append('首次翻页只有起点，没有终点')
+    if update_start is not None:
+        warnings.append('最后一次前台画面更新只有起点，没有终点')
+    sample_seconds = [item['seconds'] for item in samples]
+    expected = FOREGROUND_UPDATE_SAMPLE_COUNT
+    return {
+        'protocol': protocol or TIMING_PROTOCOL,
+        'events': events,
+        'first_page_turn_seconds': None if first_result is None else first_result['seconds'],
+        'first_page_turn': first_result,
+        'foreground_update_samples': samples,
+        'foreground_update_samples_seconds': sample_seconds,
+        'foreground_update_sample_count': len(samples),
+        'foreground_update_median_seconds': median_seconds(sample_seconds),
+        'foreground_update_expected_samples': expected,
+        'warnings': warnings,
+        'first_page_turn_recorded': first_result is not None,
+        'foreground_update_recorded': len(samples) >= expected,
+    }
+
+
+def describe_mark(kind):
+    labels = {
+        'first-page-turn-start': '首次翻页起点',
+        'first-page-turn-end': '首次翻页终点',
+        'foreground-update-start': '前台画面更新起点',
+        'foreground-update-end': '前台画面更新终点',
+        'cancel-open': '取消未完成的起点',
+    }
+    return labels.get(kind, kind)
+
+
+def next_toggle_kind(events, family):
+    open_kind = f'{family}-start'
+    close_kind = f'{family}-end'
+    pending = None
+    for event in events:
+        if event.get('kind') == 'cancel-open':
+            pending = None
+        elif event.get('kind') == open_kind:
+            pending = open_kind
+        elif event.get('kind') == close_kind:
+            pending = None
+    return close_kind if pending == open_kind else open_kind
+
+
+def resolve_mark_token(token, events):
+    token = (token or '').strip()
+    if not token:
+        return None
+    if token in MARK_KIND_ALIASES:
+        alias = MARK_KIND_ALIASES[token]
+        if alias == 'quit':
+            return 'quit'
+        if alias == 'cancel-open':
+            return 'cancel-open'
+        if alias == 'first-page-turn-toggle':
+            return next_toggle_kind(events, 'first-page-turn')
+        if alias == 'foreground-update-toggle':
+            return next_toggle_kind(events, 'foreground-update')
+    if token in MARK_KINDS:
+        return token
+    return None
 
 
 def watch_saves(directory, replacements, backup_writes):
@@ -201,8 +478,6 @@ def watch_saves(directory, replacements, backup_writes):
     return watcher.counts
 
 
-def wall_clock_text():
-    return datetime.now().astimezone().isoformat(timespec='seconds')
 
 
 def sleep_detected(wall_start, mono_start, wall_now, mono_now, slack=SLEEP_SLACK_SECONDS):
@@ -456,7 +731,31 @@ def render_summary(report):
             f"- 天文馆主存档成功替换：{saves.get('primary_replacement_count')}，"
             f"备份变化：{saves.get('backup_change_count')}，计数质量：{saves.get('count_quality')}")
     lines.append('- 瓦特功耗：' + ('已采到' if power else '未采到，本项保持待验收'))
-    lines.append('- 首次翻页耗时和前台画面更新耗时需人工计时，本工具不代填。')
+    if saves is not None:
+        reason = saves.get('count_quality_reason')
+        if reason:
+            lines.append(f'- 存档计数说明：{reason}')
+    timing = report.get('timing') or {}
+    first = timing.get('first_page_turn_seconds')
+    if first is None:
+        lines.append('- 首次翻页耗时：未打点。请按 performance-tools.md 的起止点补记。')
+    else:
+        lines.append(f'- 首次翻页耗时：{first} 秒')
+    samples = timing.get('foreground_update_samples_seconds') or []
+    median = timing.get('foreground_update_median_seconds')
+    expected = timing.get('foreground_update_expected_samples') or FOREGROUND_UPDATE_SAMPLE_COUNT
+    if not samples:
+        lines.append('- 前台画面更新耗时：未打点。请按 performance-tools.md 的手动展开滑块方法补记。')
+    else:
+        listed = '、'.join(str(item) for item in samples)
+        median_text = '未计算' if median is None else f'{median} 秒'
+        lines.append(
+            f'- 前台画面更新耗时：{len(samples)}/{expected} 个样本（{listed}），中位数 {median_text}')
+        if len(samples) < expected:
+            lines.append(f'- 前台画面更新样本不足 {expected} 次，复测时需补齐。')
+    for warning in timing.get('warnings') or []:
+        lines.append(f'- 计时打点提示：{warning}')
+    lines.append('- 计时口径见 performance-tools.md。离屏帧率不是前台画面更新依据。')
     lines.append('- 原始证据不要提交到仓库。观察结论回写 performance-session.md。')
     lines.append('')
     return '\n'.join(lines)
@@ -466,11 +765,12 @@ def logic_tests():
     results = {}
     with tempfile.TemporaryDirectory(prefix='popup-save-self-test-') as temporary:
         saves = watch_saves(temporary, replacements=2, backup_writes=1)
-    results['save_counter_matches_fixture'] = saves == {
-        'primary_replacement_count': 2,
-        'backup_change_count': 1,
-        'count_quality': '精确',
-    }
+    results['save_counter_matches_fixture'] = (
+        saves.get('primary_replacement_count') == 2
+        and saves.get('backup_change_count') == 1
+        and saves.get('count_quality') == '估计值'
+        and saves.get('observation_method') == 'poll'
+    )
     with tempfile.TemporaryDirectory(prefix='popup-save-mtime-') as temporary:
         watcher = SaveWatcher(temporary)
         path = pathlib.Path(temporary) / 'state.json'
@@ -480,6 +780,70 @@ def logic_tests():
         watcher.poll()
         results['mtime_only_is_estimate'] = watcher.counts['primary_replacement_count'] == 1 \
             and watcher.counts['count_quality'] == '估计值'
+    with tempfile.TemporaryDirectory(prefix='popup-save-hash-poll-') as temporary:
+        watcher = SaveWatcher(temporary)
+        path = pathlib.Path(temporary) / 'state.json'
+        temporary_path = pathlib.Path(temporary) / '.state.tmp'
+        temporary_path.write_bytes(b'{"turn":1}')
+        os.replace(temporary_path, path)
+        watcher.poll()
+        results['hash_change_during_poll_is_estimate'] = (
+            watcher.counts['primary_replacement_count'] == 1
+            and watcher.counts['count_quality'] == '估计值'
+        )
+    with tempfile.TemporaryDirectory(prefix='popup-save-rapid-') as temporary:
+        watcher = SaveWatcher(temporary)
+        path = pathlib.Path(temporary) / 'state.json'
+        for index in range(2):
+            temporary_path = pathlib.Path(temporary) / f'.state-{index}.tmp'
+            temporary_path.write_bytes(json.dumps({'turn': index}).encode())
+            os.replace(temporary_path, path)
+        watcher.poll()
+        results['rapid_writes_between_polls_under_count'] = (
+            watcher.counts['primary_replacement_count'] == 1
+            and watcher.counts['count_quality'] == '估计值'
+        )
+
+    first_start = {'kind': 'first-page-turn-start', 'timestamp': 't0', 'monotonic': 1.0}
+    first_end = {'kind': 'first-page-turn-end', 'timestamp': 't1', 'monotonic': 2.25}
+    update_events = []
+    for index in range(FOREGROUND_UPDATE_SAMPLE_COUNT):
+        update_events.append({
+            'kind': 'foreground-update-start',
+            'timestamp': f's{index}',
+            'monotonic': 10 + index * 2,
+        })
+        update_events.append({
+            'kind': 'foreground-update-end',
+            'timestamp': f'e{index}',
+            'monotonic': 10 + index * 2 + 0.4 + index * 0.1,
+        })
+    compiled = compile_timing_marks([first_start, first_end] + update_events)
+    results['timing_marks_compile'] = (
+        compiled['first_page_turn_seconds'] == 1.25
+        and compiled['foreground_update_sample_count'] == FOREGROUND_UPDATE_SAMPLE_COUNT
+        and compiled['foreground_update_median_seconds'] == 0.6
+        and compiled['first_page_turn_recorded'] is True
+        and compiled['foreground_update_recorded'] is True
+        and not compiled['warnings']
+    )
+    unmatched = compile_timing_marks([{'kind': 'first-page-turn-end', 'timestamp': 'x', 'monotonic': 3}])
+    results['timing_unmatched_end_ignored'] = (
+        unmatched['first_page_turn_seconds'] is None
+        and '首次翻页终点没有对应起点，已忽略' in unmatched['warnings']
+    )
+
+    with tempfile.TemporaryDirectory(prefix='popup-marks-') as temporary:
+        output = pathlib.Path(temporary) / 'performance-session.json'
+        append_mark(output, 'first-page-turn-start', source='self-test', mono=100.0)
+        append_mark(output, 'first-page-turn-end', source='self-test', mono=101.5)
+        report = {'manual_fields': {}}
+        timing = apply_timing_to_report(report, output)
+        results['mark_file_roundtrip'] = (
+            timing['first_page_turn_seconds'] == 1.5
+            and report['manual_fields']['first_page_turn_seconds'] == 1.5
+            and report['manual_fields']['source'] == 'marks'
+        )
 
     short = {
         'duration_scheduled_seconds': 8,
@@ -661,13 +1025,18 @@ def run_session(args):
         'manual_fields': {
             'first_page_turn_seconds': None,
             'foreground_frame_update_seconds': None,
-            'note': '这两项需人工计时，本工具只采样内存、可选功耗和天文馆存档次数。',
+            'foreground_update_samples_seconds': [],
+            'note': '按 performance-tools.md 的起止点计时。可用 --mark-prompt 或 --mark 写入本报告；也可用秒表按同一口径补记。',
         },
+        'timing_protocol': TIMING_PROTOCOL,
         'save_watch_path': str(planetarium_directory() / 'state.json') if watcher else None,
         'save_watch_skipped': save_skip_reason,
     }
     if report['official_app_confirmed'] is False and not dry_run:
         raise SystemExit('未确认正式应用，已停止。不要对场景预览采样。')
+
+    print_session_timing_help(output)
+    mark_interactive = sys.stdin.isatty()
 
     previous_handler_int = signal.signal(signal.SIGINT, request_stop)
     previous_handler_term = signal.signal(signal.SIGTERM, request_stop)
@@ -733,7 +1102,7 @@ def run_session(args):
             if time.monotonic() - started_mono >= duration:
                 break
             if remaining > 0:
-                time.sleep(min(remaining, 0.5))
+                wait_with_marks(output, min(remaining, 0.5), mark_interactive)
         # 结束时再采一次电源和分辨率
     except SessionStop as stop:
         _append_reason(invalidation, stop.reason)
@@ -763,6 +1132,7 @@ def run_session(args):
         'invalidation_reasons': invalidation,
         'power_note': '开始和中间只读 pmset；结束时尝试一次 powermetrics。无超级用户时通常没有瓦特数，不要用 sudo 运行本脚本。',
     })
+    apply_timing_to_report(report, output)
     complete, reasons = classify_session(report)
     report['invalidation_reasons'] = reasons
     report['session_complete'] = complete
@@ -792,6 +1162,134 @@ def wait_for_app(preferred_bundle, wait_seconds):
         time.sleep(2)
 
 
+def apply_timing_to_report(report, output):
+    timing = compile_timing_marks(load_marks(output))
+    report['timing'] = timing
+    report['marks_path'] = str(marks_path_for(output))
+    manual = report.setdefault('manual_fields', {})
+    manual['first_page_turn_seconds'] = timing['first_page_turn_seconds']
+    manual['foreground_frame_update_seconds'] = timing['foreground_update_median_seconds']
+    manual['foreground_update_samples_seconds'] = list(timing['foreground_update_samples_seconds'])
+    if timing['first_page_turn_recorded'] or timing['foreground_update_samples']:
+        manual['source'] = 'marks'
+    else:
+        manual['source'] = 'unrecorded'
+    return timing
+
+
+def print_session_timing_help(output):
+    path = marks_path_for(output)
+    print('首次翻页和前台画面更新请按 performance-tools.md 的起止点计时。', flush=True)
+    print(f'推荐另开终端打点（--output 须指向 {output}）：', flush=True)
+    print(
+        '  python3 specs/001-external-trial-delivery/tools/sample-performance.py '
+        f'--mark-prompt --output {output}',
+        flush=True)
+    print('本窗口也可输入 F 或 U 后回车打点；C 取消尚未结束的起点。', flush=True)
+    print(f'打点文件：{path}', flush=True)
+
+
+def wait_with_marks(output, timeout, interactive):
+    if timeout <= 0:
+        return
+    if not interactive:
+        time.sleep(timeout)
+        return
+    deadline = time.monotonic() + timeout
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        ready, _, _ = select.select([sys.stdin], [], [], remaining)
+        if not ready:
+            return
+        line = sys.stdin.readline()
+        if not line:
+            return
+        token = line.strip()
+        if not token:
+            continue
+        kind = resolve_mark_token(token, load_marks(output))
+        if kind == 'quit':
+            print('打点输入已忽略退出指令，采样会话继续。', flush=True)
+            continue
+        if kind is None:
+            print('未识别的打点。请输入 F（首次翻页）、U（画面更新）或 C（取消）。', flush=True)
+            continue
+        record, _path = append_mark(output, kind, source='session-stdin')
+        print(f"已记录{describe_mark(kind)}：{record['timestamp']}", flush=True)
+
+
+def run_mark(args):
+    output = args.output or DEFAULT_OUTPUT
+    record, path = append_mark(output, args.mark, source='mark-command')
+    print(f"已记录{describe_mark(args.mark)}：{record['timestamp']}", flush=True)
+    print(f'写入 {path}', flush=True)
+    return 0
+
+
+def run_mark_prompt(args):
+    output = args.output or DEFAULT_OUTPUT
+    path = marks_path_for(output)
+    print(f'计时打点已连接到 {path}', flush=True)
+    print('按键后立即打点（不必再按回车）：', flush=True)
+    print('  F  首次翻页：第一次为起点，第二次为终点', flush=True)
+    print(
+        f'  U  前台画面更新：第一次为起点，第二次为终点，做满 {FOREGROUND_UPDATE_SAMPLE_COUNT} 次',
+        flush=True)
+    print('  C  取消尚未结束的起点', flush=True)
+    print('  Q  结束打点（不影响 30 分钟采样）', flush=True)
+    raw = None
+    if sys.stdin.isatty():
+        try:
+            import termios
+            import tty
+            raw = termios.tcgetattr(sys.stdin.fileno())
+            tty.setcbreak(sys.stdin.fileno())
+        except (ImportError, OSError, termios.error):
+            raw = None
+    try:
+        while True:
+            if raw is not None:
+                ready, _, _ = select.select([sys.stdin], [], [])
+                if not ready:
+                    continue
+                token = sys.stdin.read(1)
+            else:
+                line = sys.stdin.readline()
+                if not line:
+                    break
+                token = line.strip()
+            if token in ('', '\n', '\r'):
+                continue
+            kind = resolve_mark_token(token, load_marks(output))
+            if kind == 'quit':
+                print('已结束打点。', flush=True)
+                return 0
+            if kind is None:
+                print('未识别的按键。请用 F、U、C 或 Q。', flush=True)
+                continue
+            record, _path = append_mark(output, kind, source='mark-prompt')
+            compiled = compile_timing_marks(load_marks(output))
+            extra = ''
+            if kind == 'first-page-turn-end' and compiled['first_page_turn_seconds'] is not None:
+                extra = f"，耗时 {compiled['first_page_turn_seconds']} 秒"
+            elif kind == 'foreground-update-end' and compiled['foreground_update_samples_seconds']:
+                extra = (
+                    f"，本样本 {compiled['foreground_update_samples_seconds'][-1]} 秒"
+                    f"（{compiled['foreground_update_sample_count']}/{FOREGROUND_UPDATE_SAMPLE_COUNT}）"
+                )
+            print(f"已记录{describe_mark(kind)}：{record['timestamp']}{extra}", flush=True)
+    except KeyboardInterrupt:
+        print('\n已结束打点。', flush=True)
+        return 0
+    finally:
+        if raw is not None:
+            import termios
+            termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, raw)
+    return 0
+
+
 def power_mark(label, include_watts=False):
     return {
         'label': label,
@@ -819,14 +1317,23 @@ def main():
     parser.add_argument('--pid', type=int, help='仅短时演练使用的进程号')
     parser.add_argument('--wait-for-app', type=int, default=60,
                         help='等待正式应用出现的秒数，默认 60；0 表示不等待')
+    parser.add_argument('--mark', choices=list(MARK_KINDS),
+                        help='向会话打点文件写入一个计时点，须与 --output 指向同一份会话结果')
+    parser.add_argument('--mark-prompt', action='store_true',
+                        help='在另一终端按 F/U 打点，须与会话使用同一 --output')
     args = parser.parse_args()
-    selected = sum(bool(item) for item in (args.self_test, args.session, args.dry_run))
+    selected = sum(bool(item) for item in (
+        args.self_test, args.session, args.dry_run, args.mark, args.mark_prompt))
     if selected != 1:
-        parser.error('请指定 --session、--self-test 或 --dry-run 之一。正式测量用 --session。')
+        parser.error('请指定 --session、--self-test、--dry-run、--mark 或 --mark-prompt 之一。正式测量用 --session。')
     if args.account == 'daily' and not args.consent_daily_store:
         parser.error('使用日常账户时必须同时给出 --consent-daily-store；否则请改用独立测试账户。')
     if args.consent_daily_store and args.account != 'daily':
         parser.error('--consent-daily-store 只能与 --account daily 一起使用')
+    if args.mark or args.mark_prompt:
+        if args.account or args.consent_daily_store:
+            parser.error('打点命令不读取存档，无需 --account。')
+        return run_mark_prompt(args) if args.mark_prompt else run_mark(args)
     if args.self_test:
         report = self_test()
         text = json.dumps(report, ensure_ascii=False, indent=2) + '\n'

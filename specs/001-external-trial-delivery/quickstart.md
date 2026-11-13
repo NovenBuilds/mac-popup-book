@@ -30,6 +30,6 @@ python3 specs/001-external-trial-delivery/tools/sample-performance.py \
   --output build/candidate-checks/manual/performance-session.json
 ```
 
-启动命令、输出样例和复跑步骤见 `specs/001-external-trial-delivery/records/performance-tools.md`。没有超级用户授权时，瓦特功耗单列为待验收。未获得明确同意时，不使用日常存档。
+启动命令、计时起止点、输出样例和复跑步骤见 `specs/001-external-trial-delivery/records/performance-tools.md`。首次翻页和前台画面更新按该文件的起止点打点或用秒表记录。本工具对天文馆存档只做定期轮询，次数标为估计值。没有超级用户授权时，瓦特功耗单列为待验收。未获得明确同意时，不使用日常存档。
 
 预期结果：观察完成前，这两项保持待验收。范围外事项不因补做自用验证而改为通过。
