@@ -4,17 +4,19 @@
 
 ## 用哪个包
 
-- 提交：`e5d7e9a5fc584fb8b735fea2feb59e4e5ccc33bf`
+- 提交：`a74fd9ccdb568845daf0fce034c202fe25d69750`
 - 版本：0.2.1（构建 4）
-- 运行：[43353715983](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43353715983)
-- 应用包：[KaiHe-0.2.1-4-e5d7e9a5fc58-macOS.zip](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43353715983/artifacts/14005861717)
-- 应用包 SHA-256：`e78386c3a65efb3167644c6bb5b003fefd37c624f2eb4ec47bf37e9141d2d382`
-- 源码清单 SHA-256：`80d3fc3ef65f6025571133c8b6efc45b06b04d7e2d5d908158813c4c4e3161c6`
-- 应用清单 SHA-256：`671e0500f99237e9fd8e0ee985c230bf3635aacb5769dd7735244158292679db`
+- 运行：[43366595029](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43366595029)（2026-11-13 12:36–12:49，Asia/Shanghai）
+- 应用包：[KaiHe-0.2.1-4-a74fd9ccdb56-macOS.zip](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43366595029/artifacts/14010539091)
+- 应用包 SHA-256：`9adbbd6689a6c4e856c7047c9364bda768b9a317f9b6d48f746e90677aeea3b5`
+- 源码清单 SHA-256：`358e226ae90937e751d85731dd16da23740ef13bd2ea56002d614f1b9d4651d7`
+- 应用清单 SHA-256：`19f7813cf8a09ba69c01aa8d3065dcc7fa96e5b2a8ca35436413376f80ad7e1f`
+- 可执行文件 SHA-256：`494e4a52d899c6bc5756258c016530ca9ca45787cdf5af1bed73933082626f11`
+- 证据产物：[candidate-evidence-a74fd9ccdb568845daf0fce034c202fe25d69750](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43366595029/artifacts/14011232791)
 
 下载后先核对压缩包 SHA-256，一致再解压。这是本地临时签名，不是公证试用包。系统可能提示无法验证开发者；确认校验值后可用右键打开。
 
-相对本机原先的 `e6ff530` 候选，这个提交只改了远程自动验收策略和记录，不改五页玩法。应用清单校验值与当时本机构建不同，以本包为准。
+相对此前的 `e5d7e9a` 包，这个提交补齐了 30 分钟采样工具，并把正式清单里声音步骤的墙钟等待改为 60 秒，不改五页玩法，也不改本机 55 帧/秒门槛。应用清单校验值以本包为准。
 
 ## 开始前
 
