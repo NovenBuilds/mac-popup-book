@@ -61,4 +61,5 @@
 - 前台画面更新的正式方法是手动展开滑块的定点拨动，采集 5 个样本并记中位数，不是离屏管线帧率。
 - `SaveWatcher` 仍用定期 `poll()` 观察 `state.json` 和备份。即使看到内容哈希变化，`count_quality` 也一律为估计值，因为轮询不能逐次确认每一次成功写入，也可能漏计连续替换。本工具没有精确计数路径。
 - 未改产品玩法和 `BookIntegrationCheck` 门槛。US1 / US2 的本机验收包仍是 `a74fd9c`（运行 [43366595029](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43366595029)，`KaiHe-0.2.1-4-a74fd9ccdb56-macOS.zip`，SHA-256 `9adbbd6689a6c4e856c7047c9364bda768b9a317f9b6d48f746e90677aeea3b5`）。本批文档和工具提交若再生成压缩包，不改验收单指向。
+- 提交 `7c51f222a0e6a4c046d4ee101752cb6f9472dcdb`，运行 [43376299044](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43376299044)（2026-11-13 14:05–14:17，Asia/Shanghai）：`common`、`discover`、全部 `scene` 和 `candidate` 通过。这次运行也上传了新的应用包和证据产物，但只改了采样脚本和记录，验收单仍指向 `a74fd9c` 包。
 - 真实开合、试听和前台 30 分钟性能仍待验收。签名、公证、异机安装和五人试玩仍为范围外。
