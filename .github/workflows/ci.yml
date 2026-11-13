@@ -40,10 +40,32 @@ jobs:
         run: |
           python3 scripts/page.py check "$PAGE_ID"
           python3 scripts/page.py build "$PAGE_ID"
-  published-book:
-    needs: common
+  candidate:
+    needs: [common, scene]
     runs-on: macos-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - name: 严格构建全部已发布页面
-        run: bash scripts/build.sh
+      - name: 显示工具链
+        run: xcrun swift --version
+      - name: 运行候选自动验收
+        run: bash scripts/verify-candidate.sh
+      - name: 整理候选产物
+        if: always()
+        run: bash scripts/package-ci-artifacts.sh
+      - name: 上传验收日志与构建凭据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-evidence-${{ github.sha }}
+          path: build/ci-artifacts/evidence/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: 上传可下载应用
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-app-${{ github.sha }}
+          path: build/ci-artifacts/*.zip
+          if-no-files-found: error
+          retention-days: 30
