@@ -28,3 +28,25 @@
 - 跑机设备为 Apple Paravirtual device。隔离验收离屏消费约 26.37 帧/秒（反馈 p95 约 84.61 毫秒，传输 p95 约 5.64 毫秒）；森林约 19.95 帧/秒（传输 p95 约 20.99 毫秒）。已记录，未达本机 55 帧/秒门槛，不作为远程失败。
 
 本机集中验收单见 `manual-acceptance-checklist.md`，指向本次可下载的 `e5d7e9a` 应用包。真实开合、试听和前台 30 分钟性能仍待验收。
+
+## 第二批
+
+目标：把 30 分钟性能采样工具补成可实际运行的会话入口；追查提交 `5ea241c` 在候选自动验收中出现的口袋小镇 `town.clock` 声音事件超时。
+
+### 性能采样工具
+
+- 脚本：`specs/001-external-trial-delivery/tools/sample-performance.py`。新增 `--session` 正式入口，保留 `--self-test`，并提供不能当作 30 分钟结果的 `--dry-run`。
+- 启动命令、输出样例和复跑步骤见 `performance-tools.md`，验收单 US2 一节已同步。US1 / US2 观察仍为待验收。
+
+### 口袋小镇 `town.clock` 超时
+
+- 产品代码与通过提交 `e5d7e9a` 相同。`5ea241c` 只回填记录与校验值。
+- 失败运行：[43355366364](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43355366364)（2026-11-13 10:54–11:08，Asia/Shanghai）。`common`、`discover` 和全部 `scene` 通过；`candidate` 在「运行候选自动验收」失败（exit 1），未上传应用包。
+- 证据产物：`candidate-evidence-5ea241c391ed6fd381f7ae55867860808137ef10`（[14005638824](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43355366364/artifacts/14005638824)）。原始日志保留在调查目录，不提交。
+- 正式清单日志在 `town.bridge play` 通过后失败：`正式场景验收超时：pocket-town sound("town.clock", PopupBookCore.PageSound.Operation.play)，反馈 Train on Clock tower loop.` 此前口袋小镇的 open、half、closed、reopened、reset-before-manual-trip、station-72deg、town-switch、town-depart 均已通过。字幕仍为列车在钟楼线上行驶，说明行程尚未结束。
+- 同提交稍后的文档提交 `d06a4c0` 以及更早的产品提交 `e5d7e9a`，候选作业都通过，且同样打印 `通过：town.clock play`。
+- 几何复算：钟楼线一圈 24 秒。接近车站的道岔引线会在发车后约 1.71 秒先触发 `town.bridge`，返程桥约在 14.56 秒，钟楼圈在 16.35–17.47 秒。验收在两次 6.5 秒等待后检查这两个声音；引线上的桥声已足够让 `town.bridge` 立即通过，随后只剩 8 秒墙钟等待 `town.clock`。
+- 协调器单帧 `deltaTime` 上限为 0.05 秒，落后的时间不会补回。远程跑机为 Apple Paravirtual device。这次失败的隔离验收约 21.85 帧/秒，反馈 p95 约 121.8 毫秒；同环境通过时隔离约 26–29 帧/秒，反馈 p95 约 71–85 毫秒。主线程一旦卡顿，仿真钟会落后墙钟，8 秒窗口不够等到 16.3 秒处的钟声。这与「有时通过、有时超时」相符，更像检查等待偏紧，而不是钟声逻辑稳定缺失。
+- 处理：不改本机 55 帧/秒、100 毫秒门槛，也不放宽钟声触发条件。只把正式清单里 `.sound` 步骤的墙钟等待从 8 秒改为 60 秒，超时信息附带已等待秒数。其他步骤仍为 8 秒。
+- 复跑：对同一运行做了第 2 次尝试（2026-11-13 12:22–12:33，Asia/Shanghai），`town.clock` 超时复现。正式清单仍在 `town.bridge play` 之后、字幕仍为 `Train on Clock tower loop` 时失败。证据产物 [14010024416](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43355366364/artifacts/14010024416)。本次隔离验收约 19.67 帧/秒，反馈 p95 约 105.9 毫秒，森林约 18.94 帧/秒，比两次通过运行更慢，与墙钟等待偏紧的判断一致。
+

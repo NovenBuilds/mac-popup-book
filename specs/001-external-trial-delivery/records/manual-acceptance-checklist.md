@@ -58,14 +58,24 @@
 
 ## US2 前台 30 分钟性能
 
-与 US1 分开：重新启动同一个应用包后再开始。采样工具是 `specs/001-external-trial-delivery/tools/sample-performance.py`，工具自检见 `performance-tools.md`。离屏帧率不是本项依据。
+与 US1 分开：完全退出后再重新启动同一个应用包，不要接在同一轮开合后面计时。离屏帧率不是本项依据。采样工具说明、输出样例和复跑步骤见 `performance-tools.md`。
+
+从仓库根目录启动 30 分钟采样：
+
+```sh
+python3 specs/001-external-trial-delivery/tools/sample-performance.py \
+  --session --account independent \
+  --output build/candidate-checks/manual/performance-session.json
+```
+
+工具会写入上面的 JSON，以及同目录的 `performance-session-summary.md`。短时中断、睡眠、合盖或改分辨率后，该次记录作废，须重新启动应用再跑。自检（`--self-test`）和短时演练（`--dry-run`）都不能代替 30 分钟会话。
 
 | 项目 | 记录 | 结论 |
 |---|---|---|
-| 首次翻页耗时 |  |  |
-| 前台画面更新耗时 |  |  |
-| 连续 30 分钟内存走势 |  |  |
+| 首次翻页耗时 | 人工计时，写明起止点 |  |
+| 前台画面更新耗时 | 人工计时，写明方法和样本数量 |  |
+| 连续 30 分钟内存走势 | 见采样 JSON 的 `memory_trend` 与 `samples` |  |
 | 静置功耗 | 无超级用户时，`powermetrics` 给不出瓦特数，只把本项留为待验收 |  |
-| 天文馆主存档成功替换次数 | 备份次数单列 |  |
+| 天文馆主存档成功替换次数 | 见 `save_counter`；备份次数单列 |  |
 
 五项齐全才把 US2 标为通过。只有功耗缺读数时，其他项仍可记录，功耗保持待验收。

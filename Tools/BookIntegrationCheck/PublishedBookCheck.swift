@@ -144,8 +144,10 @@ import PopupBookRuntime
         if check.failed(state.current) { check.fail("正式场景进程失败：\(state.current ?? "未选页")") }
 
         let step = steps[index]
-        if let startedAt, now - startedAt > 8 {
-            check.fail("正式场景验收超时：\(state.current ?? "未选页") \(step)，反馈 \(state.output.caption)")
+        if let startedAt, now - startedAt > timeout(for: step) {
+            let waited = String(format: "%.1f", now - startedAt)
+            check.fail(
+                "正式场景验收超时：\(state.current ?? "未选页") \(step)，已等待 \(waited) 秒，反馈 \(state.output.caption)")
         }
 
         switch step {
@@ -229,6 +231,17 @@ import PopupBookRuntime
     }
 
     private var inputWaitStart: Double?
+
+    private func timeout(for step: Step) -> Double {
+        switch step {
+        case .sound:
+            // 钟楼线途经钟声约在发车后 16.3 秒仿真时间出现。远程离屏跑机在主线程
+            // 卡顿时会因单帧 dt 上限 0.05 秒落后墙钟，原 8 秒墙钟等待偏紧。
+            return 60
+        default:
+            return 8
+        }
+    }
 
     private func finishStep() {
         index += 1

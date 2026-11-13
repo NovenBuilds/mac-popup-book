@@ -11,6 +11,7 @@
 - [x] R002 确认该次运行的提交号与应用校验值一致，并把运行链接写入 `specs/001-external-trial-delivery/records/remote-iteration.md`
 - [x] R003 真实开合、试听和前台 30 分钟性能仍待验收；已出具集中验收单 `specs/001-external-trial-delivery/records/manual-acceptance-checklist.md`
 - [ ] R004 签名、公证、异机安装和对外试用仍缺证书、设备或人员，保持范围外或待验收，不阻塞其他可远程完成的工作
+- [x] R005 将 30 分钟性能采样工具补成可实际运行的 `--session` 入口，并追查 5ea241c 的口袋小镇 `town.clock` 超时
 
 ---
 
@@ -81,7 +82,7 @@
 
 ## Phase 4: User Story 2 - 留下长时间的前台性能记录 (Priority: P2)
 
-**Goal**: 日后可选的自用性能测量。本轮状态为待验收，工具自检不代替 30 分钟会话
+**Goal**: 日后可选的自用性能测量。本轮状态为待验收。采样工具已提供正式会话入口，自检和短时演练仍不能代替 30 分钟会话
 
 **Independent Test**: `specs/001-external-trial-delivery/records/performance-session.md` 保持待验收。五项数据全部齐全才可在日后标为通过
 

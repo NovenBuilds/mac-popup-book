@@ -22,6 +22,14 @@ git rev-parse e6ff53060517c9591e08514f3357cfde595c5f5d
 
 ## 日后的自用验证
 
-若要补做前台或性能，登录独立 macOS 测试账户，使用现有 `build/开合之间.app`。US1 与 US2 分开运行。US1 可以合盖唤醒。US2 从重新启动应用开始，连续测满 30 分钟。采样工具是 `specs/001-external-trial-delivery/tools/sample-performance.py`。没有超级用户授权时，瓦特功耗单列为待验收。未获得明确同意时，不使用日常存档。
+若要补做前台或性能，登录独立 macOS 测试账户，使用验收单指向的同一个候选包。US1 与 US2 分开运行。US1 可以合盖唤醒。US2 从重新启动应用开始，连续测满 30 分钟。在仓库根目录运行：
+
+```sh
+python3 specs/001-external-trial-delivery/tools/sample-performance.py \
+  --session --account independent \
+  --output build/candidate-checks/manual/performance-session.json
+```
+
+启动命令、输出样例和复跑步骤见 `specs/001-external-trial-delivery/records/performance-tools.md`。没有超级用户授权时，瓦特功耗单列为待验收。未获得明确同意时，不使用日常存档。
 
 预期结果：观察完成前，这两项保持待验收。范围外事项不因补做自用验证而改为通过。
