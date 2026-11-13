@@ -26,3 +26,5 @@
 - 构建凭据与提交一致：工作区干净，源码清单 SHA-256 `80d3fc3ef65f6025571133c8b6efc45b06b04d7e2d5d908158813c4c4e3161c6`，应用清单 SHA-256 `671e0500f99237e9fd8e0ee985c230bf3635aacb5769dd7735244158292679db`，可执行文件 SHA-256 `6f838da5294b85da5fca7881f6c14c6ca0a5cf8316ca7f9e929d322e3797aa05`。
 - 可下载应用：`KaiHe-0.2.1-4-e5d7e9a5fc58-macOS.zip`，SHA-256 `e78386c3a65efb3167644c6bb5b003fefd37c624f2eb4ec47bf37e9141d2d382`。[应用产物](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43353715983/artifacts/14005861717)，[证据产物](https://github.com/NovenBuilds/mac-popup-book/actions/runs/43353715983/artifacts/14005493009)。本地临时签名，不是公证试用包。
 - 跑机设备为 Apple Paravirtual device。隔离验收离屏消费约 26.37 帧/秒（反馈 p95 约 84.61 毫秒，传输 p95 约 5.64 毫秒）；森林约 19.95 帧/秒（传输 p95 约 20.99 毫秒）。已记录，未达本机 55 帧/秒门槛，不作为远程失败。
+
+本机集中验收单见 `manual-acceptance-checklist.md`，指向本次可下载的 `e5d7e9a` 应用包。真实开合、试听和前台 30 分钟性能仍待验收。

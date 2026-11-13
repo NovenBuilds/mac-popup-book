@@ -9,6 +9,7 @@
 | 记录 | 内容 | 本轮 |
 |---|---|---|
 | `account.md` | 账户查找与日常存档分支 | 已写。没有独立测试账户 |
+| `manual-acceptance-checklist.md` | US1/US2 集中验收单，指向 `e5d7e9a` 远程候选包 | 已出具，观察未开始 |
 | `local-session.md` | US1 前台与物理开合 | 待验收 |
 | `performance-tools.md` | 采样工具自检 | 已通过自检 |
 | `performance-session.md` | US2 单独的 30 分钟性能 | 待验收，会话未开始 |
