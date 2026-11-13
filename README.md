@@ -46,7 +46,7 @@ python3 scripts/page.py preview pocket-town
 
 单页预览使用手动角度、临时存档和静音。后台验收可检查故障隔离与渲染，加上 `--published` 可检查当前发布清单里的整书和交互。实机开合和试听通过正式应用进行。已有《林间小屋》的设置和存档沿用原路径。
 
-远程迭代分支推送后，GitHub Actions 会运行 `bash scripts/verify-candidate.sh`，并在该次运行中提供验收日志、构建凭据和可下载的应用。该应用使用本地临时签名，不等于公证后的对外试用包。
+远程迭代分支推送后，GitHub Actions 会运行 `bash scripts/verify-candidate.sh`，并在该次运行中提供验收日志、构建凭据和可下载的应用。该应用使用本地临时签名，不等于公证后的对外试用包。Actions 跑机会记录离屏管线数据，但不套用本机 55 帧/秒的性能门槛。
 
 [工程契约](docs/engineering/PAGE_CONTRACT.md) · [场景开发流程](docs/engineering/SCENE_WORKFLOW.md) · [成品验收标准](docs/engineering/RELEASE_ACCEPTANCE.md)
 

@@ -49,6 +49,8 @@ jobs:
       - name: 显示工具链
         run: xcrun swift --version
       - name: 运行候选自动验收
+        env:
+          POPUP_BOOK_RECORD_PIPELINE_PERFORMANCE: "1"
         run: bash scripts/verify-candidate.sh
       - name: 整理候选产物
         if: always()
